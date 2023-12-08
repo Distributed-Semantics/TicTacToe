@@ -4,6 +4,8 @@ import time
 
 class GameLogic:
     def __init__(self):
+        self.QUIT_COMMAND = "quit"
+        self.QUIT_TEXT = "Quitting the game."
         self.board = [[" "] * 6 for _ in range(6)]
         self.turn = "X"
         self.you = "O"
@@ -27,12 +29,16 @@ class GameLogic:
             data = client_socket.recv(1024)
             if data.decode() == "All players connected.":
                 print("All players connected.")
+                print("If you want to exit the game type 'quit'")
                 break
         while not self.game_over:
-            print("after all players con")
+            print("after all players on")
             data = client_socket.recv(1024)
             message = data.decode()
-            if message.startswith("move:"):
+            if "disconnect" in message.lower():
+                print(message)
+                self.game_over = True
+            elif message.startswith("move:"):
                 print("wst move")
                 move, player_symbol = data.decode().split(":")[1].split(",")[:2], data.decode().split(":")[1].split(",")[2]
                 if player_symbol != self.you:
@@ -46,7 +52,11 @@ class GameLogic:
                 print(self.you)
                 if msg == self.you:
                     move = input("Enter your move: ")
-                    if self.check_valid_move(move.split(",")):
+                    if move.lower() == self.QUIT_COMMAND:
+                        print(self.QUIT_TEXT)
+                        client_socket.send(self.QUIT_TEXT.encode())
+                        self.game_over = True
+                    elif self.check_valid_move(move.split(",")):
                         self.apply_move(move.split(","), self.you)
                         # Include the player's symbol in the move message
                         client_socket.send(("move:" + move + "," + self.you).encode())
@@ -144,6 +154,6 @@ class GameLogic:
         print("\n")
 
 game = GameLogic()
-port = 7777
+port = 9999
 host = "localhost"
 game.connect_to_game(host, port)

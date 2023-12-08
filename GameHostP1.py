@@ -3,6 +3,8 @@ import threading
 
 class GameLogic:
     def __init__(self):
+        self.QUIT_COMMAND = "quit"
+        self.QUIT_TEXT = "Quitting the game."
         self.board = [[" "] * 6 for _ in range(6)]
         self.turn = "X"
         self.you = "X"
@@ -23,6 +25,7 @@ class GameLogic:
         print("Player 2 connected!",player2_address)
         player3_socket, player3_address = host_socket.accept()
         print("Player 3 connected!", player3_address)
+        print("If you want to exit the game type 'quit'")
 
         player2_socket.send("All players connected.".encode())
         player3_socket.send("All players connected.".encode())
@@ -35,28 +38,39 @@ class GameLogic:
             while not self.game_over:
                 if self.turn == self.you and flag==1:  # do we do this for turns
                     move = input("Enter a move (row,column): ")
-                    if self.check_valid_move(move.split(",")):
-                        self.apply_move(
-                            move.split(","), self.you
-                        )  # hadi wstah should have smtg fo share game state w keep track of games state
-                        #is this ok to handle turns
-                            # idk maybe look into mroe of how ur gonna ensure consistency w synchro han
-                    # invalid move
-                        self.turn = self.next_turn()
-                        for other_player in other_players:
-                            other_player.send(("move:" + move + "," + self.you).encode("utf-8"))
-                            other_player.send(("next_turn:" + self.turn).encode("utf-8"))
-                        print("Valid move, to the next!")
+                    if move.lower() == self.QUIT_COMMAND:
+                        print("Quitting the game.")
+                        self.game_over = True
+                        self.inform_disconnect(self.you,other_players)
+                        break
                     else:
-                        print("Invalid move!")  # what to do in this case? i guess you can enter a new mve hit rak wst loop
+                        print("move")
+                        if self.check_valid_move(move.split(",")):
+                            self.apply_move(
+                                move.split(","), self.you
+                            )  # hadi wstah should have smtg fo share game state w keep track of games state
+                            #is this ok to handle turns
+                                # idk maybe look into mroe of how ur gonna ensure consistency w synchro han
+                        # invalid move
+                            self.turn = self.next_turn()
+                            for other_player in other_players:
+                                other_player.send(("move:" + move + "," + self.you).encode("utf-8"))
+                                other_player.send(("next_turn:" + self.turn).encode("utf-8"))
+                            print("Valid move, to the next!")
+                        else:
+                            print("Invalid move!")  # what to do in this case? i guess you can enter a new mve hit rak wst loop
                 elif self.turn==symbol:
                     # take in the data received from other players, check why bdbt this nbr
                     data = player.recv(1024)
-
                     if not data:
                         # why close clients HNA I GUESS FAULT TOLERANCE
                         # IF SMTG GOES DOWN WHAT TP DO? do we just lose teh con
                         print("no data from ", player)
+                        break
+                    if "quitting" in data.decode().lower():
+                        self.game_over = True
+                        print(f"Player {symbol} has disconnected. Game will quit")
+                        self.inform_disconnect(symbol,other_players)
                         break
                     move, player_symbol = data.decode().split(":")[1].split(",")[:2], data.decode().split(":")[1].split(",")[2]
                     self.apply_move(move, player_symbol)
@@ -94,7 +108,7 @@ class GameLogic:
             exit()  # should you exit if winner found or hwats the next step thatw e have to do
 
     def check_valid_move(self, move):
-        return self.board[int(move[0])][int(move[1])] == " "
+        return move!=self.QUIT_COMMAND and self.board[int(move[0])][int(move[1])] == " " 
 
     def check_for_winner(self):
         for row in range(6):
@@ -142,6 +156,11 @@ class GameLogic:
             self.game_over = True
             return True
         return False
+    
+    def inform_disconnect(self,disconnected_player, other_players):
+        for player in other_players:
+            player.send(f"Player {disconnected_player} has disconnected. Game will quit".encode("utf-8"))
+            player.close()
 
     def print_board(self):
         print("\n")
