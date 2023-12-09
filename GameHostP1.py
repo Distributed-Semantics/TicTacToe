@@ -1,5 +1,6 @@
 import socket
 import threading
+import time
 
 class GameLogic:
     def __init__(self):
@@ -76,7 +77,6 @@ class GameLogic:
                     self.apply_move(move, player_symbol)
                     self.turn = self.next_turn()
                     for other_player in other_players:
-                        other_player.send(("move:"+ "," .join(move) + "," + player_symbol).encode("utf-8"))
                         other_player.send(("next_turn:" + self.turn).encode("utf-8"))
                         print("ha next turn lmn",self.turn)
 

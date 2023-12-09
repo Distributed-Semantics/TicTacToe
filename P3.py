@@ -15,26 +15,45 @@ class GameLogic:
         self.game_over = False
 
         self.counter = 0  # to dtermien a tie if all field are full, counter is 36, we have a tie if no winner etc
+        
+
+    def connect_to_game(self, host, host_port,player,player_port):  # 1 player hosst game teh otehr run connect to game
+                host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                host_socket.connect((host, host_port))
+
+                player_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                player_socket.connect((player, player_port))
+                player_socket.send("Hello P2".encode())
+                data = player_socket.recv(1024)
+                message = data.decode()
+                if message == "Hello P3":
+                    print("P2 and P3 are connected.")
+                else:
+                    print("Failed to connect to P2.")
+                try:
+                    print("trying to connect to p2")
+                    threading.Thread(target=self.handle_connection, args=(player_socket,"P2",[player_socket,host_socket])).start()
+                except:
+                    print("Failed to connect to P2.")
+                threading.Thread(target=self.handle_connection, args=(host_socket,"P1",[host_socket,player_socket])).start()
+                
 
 
-    def connect_to_game(self, host, port):  # 1 player hosst game teh otehr run connect to game
-                client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                client.connect((host, port))
-
-                threading.Thread(target=self.handle_connection, args=(client,)).start()
-
-
-    def handle_connection(self, client_socket):
-        while True:
+    def handle_connection(self, client_socket,player,other_players):
+        while player=="P1":
             data = client_socket.recv(1024)
             if data.decode() == "All players connected.":
                 print("All players connected.")
                 print("If you want to exit the game type 'quit'")
                 break
+
         while not self.game_over:
-            print("after all players on")
+            print(player)
+            print("after all players con")
             data = client_socket.recv(1024)
             message = data.decode()
+            print(f"Received message: {message} from {player}")
+
             if "disconnect" in message.lower():
                 print(message)
                 self.game_over = True
@@ -44,26 +63,26 @@ class GameLogic:
                 if player_symbol != self.you:
                     self.apply_move(move, player_symbol)
             elif message.startswith("next_turn:"):
-                print(message)
-                msg=message.split(":")[1]
-                print("wst next turn",msg)
-                self.turn=msg
+                print("wst next turn",message.split(":")[1])
+                self.turn=message.split(":")[1]
                 # If the message from the host indicates it's this player's turn, make a move
-                print(self.you)
-                if msg == self.you:
+                if message.split(":")[1] == self.you:
                     move = input("Enter your move: ")
                     if move.lower() == self.QUIT_COMMAND:
                         print(self.QUIT_TEXT)
-                        client_socket.send(self.QUIT_TEXT.encode())
+                        for other_player in other_players:
+                            other_player.send(self.QUIT_TEXT.encode())
                         self.game_over = True
                     elif self.check_valid_move(move.split(",")):
                         self.apply_move(move.split(","), self.you)
                         # Include the player's symbol in the move message
-                        client_socket.send(("move:" + move + "," + self.you).encode())
+                        for other_player in other_players:
+                            other_player.send(("move:" + move + "," + self.you).encode("utf-8"))
+                        print("tsayft")
                     else:
                         print("invalid move")
             else:
-                print(message)
+                print("messa",message)
                 print("No data received from server.")
                 time.sleep(1)
 
@@ -153,7 +172,10 @@ class GameLogic:
                 print("--------------------------------")
         print("\n")
 
+
 game = GameLogic()
 port = 9999
 host = "localhost"
-game.connect_to_game(host, port)
+player_port=9998
+player="localhost"
+game.connect_to_game(host, port,player,player_port)

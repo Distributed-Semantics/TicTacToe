@@ -15,25 +15,39 @@ class GameLogic:
         self.game_over = False
 
         self.counter = 0  # to determine a tie if all fields are full, counter is 36, we have a tie if no winner etc
+        
 
-
-    def connect_to_game(self, host, port):  # 1 player hosst game teh otehr run connect to game
+    def connect_to_game(self, host, port,player,player_port):  # 1 player hosst game teh otehr run connect to game
+                
                 host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 host_socket.connect((host, port))
 
-                threading.Thread(target=self.handle_connection, args=(host_socket,)).start()
+                player_socket=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                player_socket.bind((player, player_port))
+                player_socket.listen(1)
+                p_socket, player_address = player_socket.accept()
+                data = p_socket.recv(1024)
+                message = data.decode()
+                if message == "Hello P2":
+                    p_socket.send("Hello P3".encode())
+                #send a msg to the host that the player 3 is connected
+                threading.Thread(target=self.handle_connection, args=(p_socket,"P3",[p_socket,host_socket])).start()
+                threading.Thread(target=self.handle_connection, args=(host_socket,"P1",[host_socket,p_socket])).start()
 
-    def handle_connection(self, client_socket):
-        while True:
+    def handle_connection(self, client_socket,player,other_players):
+        while player=="P1":
             data = client_socket.recv(1024)
-            if data.decode() == "All players connected.":
+            if data.decode() == "All players connected." and player=="P1":
                 print("All players connected.")
                 print("If you want to exit the game type 'quit'")
                 break
         while not self.game_over:
             print("after all players con")
+            print(player)
             data = client_socket.recv(1024)
             message = data.decode()
+            print(f"Received message: {message} from {player}")
+
             if "disconnect" in message.lower():
                 print(message)
                 self.game_over = True
@@ -50,12 +64,15 @@ class GameLogic:
                     move = input("Enter your move: ")
                     if move.lower() == self.QUIT_COMMAND:
                         print(self.QUIT_TEXT)
-                        client_socket.send(self.QUIT_TEXT.encode())
+                        for other_player in other_players:
+                            other_player.send(self.QUIT_TEXT.encode())
                         self.game_over = True
                     elif self.check_valid_move(move.split(",")):
                         self.apply_move(move.split(","), self.you)
                         # Include the player's symbol in the move message
-                        client_socket.send(("move:" + move + "," + self.you).encode())
+                        for other_player in other_players:
+                            other_player.send(("move:" + move + "," + self.you).encode("utf-8"))
+                            print("tsayft")
                     else:
                         print("invalid move")
             else:
@@ -153,4 +170,6 @@ class GameLogic:
 game = GameLogic()
 port = 9999
 host = "localhost"
-game.connect_to_game(host, port)
+player_port=9998
+player="localhost"
+game.connect_to_game(host, port,player,player_port)
