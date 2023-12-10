@@ -57,11 +57,19 @@ class GameLogic:
             if "disconnect" in message.lower():
                 print(message)
                 self.game_over = True
+            elif message.startswith("WIN"):
+                print("YOU LOOSE!")
+                self.game_over = True
+                exit()
+            elif message.startswith("TIE"):
+                print("IT IS A TIE!")
+                self.game_over = True
+                exit()
             elif message.startswith("move:"):
                 print("wst move")
                 move, player_symbol = data.decode().split(":")[1].split(",")[:2], data.decode().split(":")[1].split(",")[2]
                 if player_symbol != self.you:
-                    self.apply_move(move, player_symbol)
+                    self.apply_move(move, player_symbol,other_players)
             elif message.startswith("next_turn:"):
                 print("wst next turn",message.split(":")[1])
                 self.turn=message.split(":")[1]
@@ -74,7 +82,7 @@ class GameLogic:
                             other_player.send(self.QUIT_TEXT.encode())
                         self.game_over = True
                     elif self.check_valid_move(move.split(",")):
-                        self.apply_move(move.split(","), self.you)
+                        self.apply_move(move.split(","), self.you,other_players)
                         # Include the player's symbol in the move message
                         for other_player in other_players:
                             other_player.send(("move:" + move + "," + self.you).encode("utf-8"))
@@ -96,23 +104,31 @@ class GameLogic:
         else:
             return self.you
     # WHAT TO DO IF UR THRONW OUT OF THE LOOP CLOSE TEH CLIENTS?
-    def apply_move(self, move, player):  # idk arguments i guess aybano as we go,
+    def apply_move(self, move, player,other_players):  # idk arguments i guess aybano as we go,
         # i think correct hit player hia bach tayl3bp
         if self.game_over:  # HIT GAME OVER?? MAKHASSOCH YWSL HNA LA KAN GAME OVER NO?
             return
         self.counter += 1
         self.board[int(move[0])][int(move[1])] = player
         self.print_board()
+        
         if self.check_for_winner():
             self.game_over = True
             if self.winner == self.you:
-                print("YOU WIN!!")  # what happens when someone wins???
-            elif self.winner == self.player2 or self.winner == self.player3:
-                print("YOU LOOSE! :(")
+                print("YOU WIN!!")  
+                #broadcast a win, have other players print they lost then quit
+                for other_player in other_players:
+                        other_player.send(("WIN" + self.you).encode("utf-8"))
+                self.game_over = True
+
             else:
                 if self.counter == 36:
                     print("IT IS A TIE!")
-            exit()  # should you exit if winner found or hwats the next step thatw e have to do
+                    for other_player in other_players:
+                        other_player.send("TIE" + self.you.encode("utf-8"))
+                    self.game_over = True
+                    #broadcast a tie then quit
+            exit()
 
     def check_valid_move(self, move):
         return self.board[int(move[0])][int(move[1])] == " "
