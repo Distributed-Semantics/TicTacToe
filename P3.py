@@ -20,6 +20,7 @@ class GameLogic:
     def connect_to_game(self, host, host_port,player,player_port):  # 1 player hosst game teh otehr run connect to game
                 host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 host_socket.connect((host, host_port))
+                print("Connected to host")
 
                 player_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 player_socket.connect((player, player_port))
@@ -172,10 +173,18 @@ class GameLogic:
                 print("--------------------------------")
         print("\n")
 
-
 game = GameLogic()
-port = 9999
-host = "localhost"
-player_port=9998
-player="localhost"
+
+environment = input("Running locally?")
+env_lower = environment.lower()
+if env_lower == "yes":
+    port = 9999
+    host = "localhost"
+    player_port=9998
+    player="localhost"
+else:
+    port = 53217
+    host = "svm-11.cs.helsinki.fi"
+    player_port=53217
+    player="svm-11-2.cs.helsinki.fi"
 game.connect_to_game(host, port,player,player_port)

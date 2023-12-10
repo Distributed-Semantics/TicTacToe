@@ -171,6 +171,13 @@ class GameLogic:
         print("\n")
 
 game = GameLogic()
-port = 9999
-host = "localhost"
+
+environment = input("Running locally?")
+env_lower = environment.lower()
+if env_lower == "yes":
+    port = 9999
+    host = "localhost"
+else:
+    port = 53217
+    host = "svm-11.cs.helsinki.fi"
 game.host_game(host, port)
