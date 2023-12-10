@@ -1,6 +1,7 @@
 import socket
 import threading
 import time
+import logging
 
 class GameLogic:
     def __init__(self):
@@ -13,12 +14,11 @@ class GameLogic:
         self.player3 = "X"
         self.winner = None
         self.game_over = False
-
         self.counter = 0  # to determine a tie if all fields are full, counter is 36, we have a tie if no winner etc
-        
+        logging.basicConfig(filename=f'TicTacLog{self.you}.log', level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
     def connect_to_game(self, host, port,player,player_port):  # 1 player hosst game teh otehr run connect to game
-                
+                logging.info(f'{self.you} started the game')
                 host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 host_socket.connect((host, port))
 
@@ -69,6 +69,8 @@ class GameLogic:
                         self.game_over = True
                     elif self.check_valid_move(move.split(",")):
                         self.apply_move(move.split(","), self.you)
+                        logging.info(f"Movement {self.you} {move}")
+                        logging.info(f"Board {self.board}")
                         # Include the player's symbol in the move message
                         for other_player in other_players:
                             other_player.send(("move:" + move + "," + self.you).encode("utf-8"))

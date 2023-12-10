@@ -1,6 +1,7 @@
 import socket
 import threading
 import time
+import logging
 
 class GameLogic:
     def __init__(self):
@@ -13,10 +14,13 @@ class GameLogic:
         self.player3 = "O"
         self.winner = None
         self.game_over = False
-
         self.counter = 0  # to dtermien a tie if all field are full, counter is 36, we have a tie if no winner etc
+        # Configure logging to write to a file
+        logging.basicConfig(filename=f'TicTacLog{self.you}.log', level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+
 
     def host_game(self, host, port):  # basically does job fo tournament manager?
+        logging.info(f'Started the game')
         host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # we are using tcp
         host_socket.bind((host, port))
         host_socket.listen(2)  # server needs to listen for 2 connections so that the game can start
@@ -24,9 +28,11 @@ class GameLogic:
         print("Waiting for players to connect...")
         player2_socket, player2_address = host_socket.accept()
         print("Player 2 connected!",player2_address)
+        logging.info(f"Player 2 connected! {player2_address}")
         player3_socket, player3_address = host_socket.accept()
         print("Player 3 connected!", player3_address)
         print("If you want to exit the game type 'quit'")
+        logging.info(f"Player 3 connected! {player3_address}")
 
         player2_socket.send("All players connected.".encode())
         player3_socket.send("All players connected.".encode())
@@ -49,7 +55,10 @@ class GameLogic:
                         if self.check_valid_move(move.split(",")):
                             self.apply_move(
                                 move.split(","), self.you
-                            )  # hadi wstah should have smtg fo share game state w keep track of games state
+                            )  
+                            logging.info(f"Movement {self.you} {move}")
+                            logging.info(f"Board {self.board}")
+                            # hadi wstah should have smtg fo share game state w keep track of games state
                             #is this ok to handle turns
                                 # idk maybe look into mroe of how ur gonna ensure consistency w synchro han
                         # invalid move
@@ -57,7 +66,7 @@ class GameLogic:
                             for other_player in other_players:
                                 other_player.send(("move:" + move + "," + self.you).encode("utf-8"))
                                 other_player.send(("next_turn:" + self.turn).encode("utf-8"))
-                            print("Valid move, to the next!")
+                            print("Valid move, to the next!")                     
                         else:
                             print("Invalid move!")  # what to do in this case? i guess you can enter a new mve hit rak wst loop
                 elif self.turn==symbol:
