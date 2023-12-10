@@ -37,6 +37,9 @@ class GameLogic:
         # shoudl i close it? hit technically u will get the other moves and evrtg mn otehr nodes
 
     def handle_connection(self,player,other_players,symbol,flag):
+            data = player.recv(1024)  # wait for ACK
+            if data.decode() == "ACK":
+                print("ACK received.")
             while not self.game_over:
                 if self.turn == self.you and flag==1:  # do we do this for turns
                     move = input("Enter a move (row,column): ")
