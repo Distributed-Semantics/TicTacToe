@@ -76,20 +76,23 @@ class GameLogic:
                 self.turn=message.split(":")[1]
                 # If the message from the host indicates it's this player's turn, make a move
                 if message.split(":")[1] == self.you:
-                    move = input("Enter your move: ")
-                    if move.lower() == self.QUIT_COMMAND:
-                        print(self.QUIT_TEXT)
-                        for other_player in other_players:
-                            other_player.send(self.QUIT_TEXT.encode())
-                        self.game_over = True
-                    elif self.check_valid_move(move.split(",")):
-                        self.apply_move(move.split(","), self.you,other_players)
-                        # Include the player's symbol in the move message
-                        for other_player in other_players:
-                            other_player.send(("move:" + move + "," + self.you).encode("utf-8"))
-                        print("tsayft")
-                    else:
-                        print("invalid move")
+                    while True:
+                        move = input("Enter your move: ")
+                        if move.lower() == self.QUIT_COMMAND:
+                            print(self.QUIT_TEXT)
+                            for other_player in other_players:
+                                other_player.send(self.QUIT_TEXT.encode())
+                            self.game_over = True
+                            break
+                        elif self.check_valid_move(move.split(",")):
+                            self.apply_move(move.split(","), self.you,other_players)
+                            # Include the player's symbol in the move message
+                            for other_player in other_players:
+                                other_player.send(("move:" + move + "," + self.you).encode("utf-8"))
+                                print("tsayft")
+                            break
+                        else:
+                            print("invalid move. Try Again.")
             else:
                 print("messa",message)
                 print("No data received from server.")
