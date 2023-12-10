@@ -21,6 +21,7 @@ class GameLogic:
                 logging.info(f'{self.you} started the game')
                 host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 host_socket.connect((host, port))
+                print("Connected to host")
 
                 player_socket=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 player_socket.bind((player, player_port))
@@ -40,6 +41,7 @@ class GameLogic:
             if data.decode() == "All players connected." and player=="P1":
                 print("All players connected.")
                 print("If you want to exit the game type 'quit'")
+                client_socket.send("ACK".encode())  
                 break
         while not self.game_over:
             print("after all players con")
@@ -51,32 +53,43 @@ class GameLogic:
             if "disconnect" in message.lower():
                 print(message)
                 self.game_over = True
+            elif message.startswith("WIN"):
+                print("YOU LOOSE!")
+                self.game_over = True
+                exit()
+            elif message.startswith("TIE"):
+                print("IT IS A TIE!")
+                self.game_over = True
+                exit()
             elif message.startswith("move:"):
                 print("wst move")
                 move, player_symbol = data.decode().split(":")[1].split(",")[:2], data.decode().split(":")[1].split(",")[2]
                 if player_symbol != self.you:
-                    self.apply_move(move, player_symbol)
+                    self.apply_move(move, player_symbol,other_players)
             elif message.startswith("next_turn:"):
                 print("wst next turn",message.split(":")[1])
                 self.turn=message.split(":")[1]
                 # If the message from the host indicates it's this player's turn, make a move
                 if message.split(":")[1] == self.you:
-                    move = input("Enter your move: ")
-                    if move.lower() == self.QUIT_COMMAND:
-                        print(self.QUIT_TEXT)
-                        for other_player in other_players:
-                            other_player.send(self.QUIT_TEXT.encode())
-                        self.game_over = True
-                    elif self.check_valid_move(move.split(",")):
-                        self.apply_move(move.split(","), self.you)
-                        logging.info(f"Movement {self.you} {move}")
-                        logging.info(f"Board {self.board}")
-                        # Include the player's symbol in the move message
-                        for other_player in other_players:
-                            other_player.send(("move:" + move + "," + self.you).encode("utf-8"))
-                            print("tsayft")
-                    else:
-                        print("invalid move")
+                    while True:
+                        move = input("Enter your move: ")
+                        if move.lower() == self.QUIT_COMMAND:
+                            print(self.QUIT_TEXT)
+                            for other_player in other_players:
+                                other_player.send(self.QUIT_TEXT.encode())
+                            self.game_over = True
+                            break
+                        elif self.check_valid_move(move.split(",")):
+                            self.apply_move(move.split(","), self.you,other_players)
+                            logging.info(f"Movement {self.you} {move}")
+                            logging.info(f"Board {self.board}")
+                            # Include the player's symbol in the move message
+                            for other_player in other_players:
+                                other_player.send(("move:" + move + "," + self.you).encode("utf-8"))
+                                print("tsayft")
+                            break
+                        else:
+                            print("invalid move. Try Again.")
             else:
                 print("messa",message)
                 print("No data received from server.")
@@ -93,23 +106,31 @@ class GameLogic:
         else:
             return self.you
     # WHAT TO DO IF UR THRONW OUT OF THE LOOP CLOSE TEH CLIENTS?
-    def apply_move(self, move, player):  # idk arguments i guess aybano as we go,
+    def apply_move(self, move, player,other_players):  # idk arguments i guess aybano as we go,
         # i think correct hit player hia bach tayl3bp
         if self.game_over:  # HIT GAME OVER?? MAKHASSOCH YWSL HNA LA KAN GAME OVER NO?
             return
         self.counter += 1
         self.board[int(move[0])][int(move[1])] = player
         self.print_board()
+        
         if self.check_for_winner():
             self.game_over = True
             if self.winner == self.you:
-                print("YOU WIN!!")  # what happens when someone wins???
-            elif self.winner == self.player2 or self.winner == self.player3:
-                print("YOU LOOSE! :(")
+                print("YOU WIN!!")  
+                #broadcast a win, have other players print they lost then quit
+                for other_player in other_players:
+                        other_player.send(("WIN" + self.you).encode("utf-8"))
+                self.game_over = True
+
             else:
                 if self.counter == 36:
                     print("IT IS A TIE!")
-            exit()  # should you exit if winner found or hwats the next step thatw e have to do
+                    for other_player in other_players:
+                        other_player.send("TIE" + self.you.encode("utf-8"))
+                    self.game_over = True
+                    #broadcast a tie then quit
+            exit()
 
     def check_valid_move(self, move):
         return self.board[int(move[0])][int(move[1])] == " "
@@ -168,10 +189,19 @@ class GameLogic:
             if row != 5:
                 print("--------------------------------")
         print("\n")
-
+        
 game = GameLogic()
-port = 9999
-host = "localhost"
-player_port=9998
-player="localhost"
+
+environment = input("Running locally?")
+env_lower = environment.lower()
+if env_lower == "yes":
+    port = 9999
+    host = "localhost"
+    player_port=9998
+    player="localhost"
+else:
+    port = 53217
+    host = "svm-11.cs.helsinki.fi"
+    player_port=53217
+    player="svm-11-2.cs.helsinki.fi"
 game.connect_to_game(host, port,player,player_port)

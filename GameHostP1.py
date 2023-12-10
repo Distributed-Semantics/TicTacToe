@@ -37,11 +37,15 @@ class GameLogic:
         player2_socket.send("All players connected.".encode())
         player3_socket.send("All players connected.".encode())
 
+
         threading.Thread(target=self.handle_connection, args=(player2_socket, [player2_socket,player3_socket],self.player2,1)).start()
         threading.Thread(target=self.handle_connection, args=(player3_socket, [player3_socket,player2_socket],self.player3,0)).start()
         # shoudl i close it? hit technically u will get the other moves and evrtg mn otehr nodes
 
     def handle_connection(self,player,other_players,symbol,flag):
+            data = player.recv(1024)  # wait for ACK
+            if data.decode() == "ACK":
+                print("ACK received.")
             while not self.game_over:
                 if self.turn == self.you and flag==1:  # do we do this for turns
                     move = input("Enter a move (row,column): ")
@@ -54,7 +58,7 @@ class GameLogic:
                         print("move")
                         if self.check_valid_move(move.split(",")):
                             self.apply_move(
-                                move.split(","), self.you
+                                move.split(","), self.you,other_players
                             )  
                             logging.info(f"Movement {self.you} {move}")
                             logging.info(f"Board {self.board}")
@@ -72,18 +76,27 @@ class GameLogic:
                 elif self.turn==symbol:
                     # take in the data received from other players, check why bdbt this nbr
                     data = player.recv(1024)
+                    message=data.decode()
                     if not data:
                         # why close clients HNA I GUESS FAULT TOLERANCE
                         # IF SMTG GOES DOWN WHAT TP DO? do we just lose teh con
                         print("no data from ", player)
                         break
-                    if "quitting" in data.decode().lower():
+                    elif "quitting" in message.lower():
                         self.game_over = True
                         print(f"Player {symbol} has disconnected. Game will quit")
                         self.inform_disconnect(symbol,other_players)
                         break
+                    elif message.startswith("WIN"):
+                        print("YOU LOOSE!")
+                        self.game_over = True
+                        exit()
+                    elif message.startswith("TIE"):
+                        print("IT IS A TIE!")
+                        self.game_over = True
+                        exit()
                     move, player_symbol = data.decode().split(":")[1].split(",")[:2], data.decode().split(":")[1].split(",")[2]
-                    self.apply_move(move, player_symbol)
+                    self.apply_move(move, player_symbol,other_players)
                     self.turn = self.next_turn()
                     for other_player in other_players:
                         other_player.send(("next_turn:" + self.turn).encode("utf-8"))
@@ -98,22 +111,30 @@ class GameLogic:
         else:
             return self.you
     # WHAT TO DO IF UR THRONW OUT OF THE LOOP CLOSE TEH CLIENTS?
-    def apply_move(self, move, player):  # idk arguments i guess aybano as we go,
+    def apply_move(self, move, player,other_players):  # idk arguments i guess aybano as we go,
         # i think correct hit player hia bach tayl3bp
         if self.game_over:  # HIT GAME OVER?? MAKHASSOCH YWSL HNA LA KAN GAME OVER NO?
             return
         self.counter += 1
         self.board[int(move[0])][int(move[1])] = player
         self.print_board()
+        
         if self.check_for_winner():
             self.game_over = True
             if self.winner == self.you:
-                print("YOU WIN!!")  # what happens when someone wins???
-            elif self.winner == self.player2 or self.winner == self.player3:
-                print("YOU LOOSE! :(")
+                print("YOU WIN!!")  
+                #broadcast a win, have other players print they lost then quit
+                for other_player in other_players:
+                        other_player.send(("WIN" + self.you).encode("utf-8"))
+                self.game_over = True
+
             else:
                 if self.counter == 36:
                     print("IT IS A TIE!")
+                    for other_player in other_players:
+                        other_player.send("TIE" + self.you.encode("utf-8"))
+                    self.game_over = True
+                    #broadcast a tie then quit
             exit()  # should you exit if winner found or hwats the next step thatw e have to do
 
     def check_valid_move(self, move):
@@ -180,6 +201,13 @@ class GameLogic:
         print("\n")
 
 game = GameLogic()
-port = 9999
-host = "localhost"
+
+environment = input("Running locally?")
+env_lower = environment.lower()
+if env_lower == "yes":
+    port = 9999
+    host = "localhost"
+else:
+    port = 53217
+    host = "svm-11.cs.helsinki.fi"
 game.host_game(host, port)
