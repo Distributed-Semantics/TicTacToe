@@ -41,6 +41,7 @@ class GameLogic:
             if data.decode() == "All players connected." and player=="P1":
                 print("All players connected.")
                 print("If you want to exit the game type 'quit'")
+                client_socket.send("ACK".encode())  
                 break
         while not self.game_over:
             print("after all players con")
