@@ -7,17 +7,21 @@ class GameLogic:
     def __init__(self):
         self.QUIT_COMMAND = "quit"
         self.QUIT_TEXT = "Quitting the game."
-        self.board = [[" "] * 6 for _ in range(6)]
+        self.grid_size = 6
+        self.board = [[" "] * self.grid_size for _ in range(self.grid_size)]
         self.turn = "X"
         self.you = "Y"
         self.player2 = "O"
         self.player3 = "X"
         self.winner = None
         self.game_over = False
+        self.other_players = []
         self.counter = 0  # to determine a tie if all fields are full, counter is 36, we have a tie if no winner etc
         logging.basicConfig(filename=f'TicTacLog{self.you}.log', level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
     def connect_to_game(self, host, port,player,player_port):  # 1 player hosst game teh otehr run connect to game
+            try:
+                
                 logging.info(f'{self.you} started the game')
                 host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 host_socket.connect((host, port))
@@ -34,67 +38,80 @@ class GameLogic:
                 #send a msg to the host that the player 3 is connected
                 threading.Thread(target=self.handle_connection, args=(p_socket,"P3",[p_socket,host_socket])).start()
                 threading.Thread(target=self.handle_connection, args=(host_socket,"P1",[host_socket,p_socket])).start()
+            except socket.error as e:
+                print(f"Socket error: {e}")
+                game.inform_disconnect(None, self.other_players)
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}")
+                game.inform_disconnect(None, self.other_players)
+    
 
     def handle_connection(self, client_socket,player,other_players):
-        while player=="P1":
-            data = client_socket.recv(1024)
-            if data.decode() == "All players connected." and player=="P1":
-                print("All players connected.")
-                print("If you want to exit the game type 'quit'")
-                client_socket.send("ACK".encode())  
-                break
-        while not self.game_over:
-            print("after all players con")
-            print(player)
-            data = client_socket.recv(1024)
-            message = data.decode()
-            print(f"Received message: {message} from {player}")
+        try:
+            while player=="P1":
+                data = client_socket.recv(1024)
+                if data.decode() == "All players connected." and player=="P1":
+                    print("All players connected.")
+                    print("If you want to exit the game type 'quit'")
+                    client_socket.send("ACK".encode())  
+                    break
+            while not self.game_over:
+                print("after all players con")
+                print(player)
+                data = client_socket.recv(1024)
+                message = data.decode()
+                print(f"Received message: {message} from {player}")
 
-            if "disconnect" in message.lower():
-                print(message)
-                self.game_over = True
-            elif message.startswith("WIN"):
-                print("YOU LOOSE!")
-                self.game_over = True
-                exit()
-            elif message.startswith("TIE"):
-                print("IT IS A TIE!")
-                self.game_over = True
-                exit()
-            elif message.startswith("move:"):
-                print("wst move")
-                move, player_symbol = data.decode().split(":")[1].split(",")[:2], data.decode().split(":")[1].split(",")[2]
-                if player_symbol != self.you:
-                    self.apply_move(move, player_symbol,other_players)
-            elif message.startswith("next_turn:"):
-                print("wst next turn",message.split(":")[1])
-                self.turn=message.split(":")[1]
-                # If the message from the host indicates it's this player's turn, make a move
-                if message.split(":")[1] == self.you:
-                    while True:
-                        move = input("Enter your move: ")
-                        if move.lower() == self.QUIT_COMMAND:
-                            print(self.QUIT_TEXT)
-                            for other_player in other_players:
-                                other_player.send(self.QUIT_TEXT.encode())
-                            self.game_over = True
-                            break
-                        elif self.check_valid_move(move.split(",")):
-                            self.apply_move(move.split(","), self.you,other_players)
-                            logging.info(f"Movement {self.you} {move}")
-                            logging.info(f"Board {self.board}")
-                            # Include the player's symbol in the move message
-                            for other_player in other_players:
-                                other_player.send(("move:" + move + "," + self.you).encode("utf-8"))
-                                print("tsayft")
-                            break
-                        else:
-                            print("invalid move. Try Again.")
-            else:
-                print("messa",message)
-                print("No data received from server.")
-                time.sleep(1)
-
+                if "disconnect" in message.lower():
+                    print(message)
+                    self.game_over = True
+                elif message.startswith("WIN"):
+                    print("YOU LOOSE!")
+                    self.game_over = True
+                    exit()
+                elif message.startswith("TIE"):
+                    print("IT IS A TIE!")
+                    self.game_over = True
+                    exit()
+                elif message.startswith("move:"):
+                    print("wst move")
+                    move, player_symbol = data.decode().split(":")[1].split(",")[:2], data.decode().split(":")[1].split(",")[2]
+                    if player_symbol != self.you:
+                        self.apply_move(move, player_symbol,other_players)
+                elif message.startswith("next_turn:"):
+                    print("wst next turn",message.split(":")[1])
+                    self.turn=message.split(":")[1]
+                    # If the message from the host indicates it's this player's turn, make a move
+                    if message.split(":")[1] == self.you:
+                        while True:
+                            move = input("Enter your move: ")
+                            if move.lower() == self.QUIT_COMMAND:
+                                print(self.QUIT_TEXT)
+                                for other_player in other_players:
+                                    other_player.send(self.QUIT_TEXT.encode())
+                                self.game_over = True
+                                break
+                            elif self.check_valid_move(move.split(",")):
+                                self.apply_move(move.split(","), self.you,other_players)
+                                logging.info(f"Movement {self.you} {move}")
+                                logging.info(f"Board {self.board}")
+                                # Include the player's symbol in the move message
+                                for other_player in other_players:
+                                    other_player.send(("move:" + move + "," + self.you).encode("utf-8"))
+                                    print("tsayft")
+                                break
+                            else:
+                                print("invalid move. Try Again.")
+                else:
+                    print("messa",message)
+                    print("No data received from server.")
+                    time.sleep(1)
+        except socket.error as e:
+            print(f"Socket error: {e}")
+            game.inform_disconnect(None, self.other_players)
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+            game.inform_disconnect(None, self.other_players)
 
                 
                  
@@ -107,33 +124,48 @@ class GameLogic:
             return self.you
     # WHAT TO DO IF UR THRONW OUT OF THE LOOP CLOSE TEH CLIENTS?
     def apply_move(self, move, player,other_players):  # idk arguments i guess aybano as we go,
-        # i think correct hit player hia bach tayl3bp
-        if self.game_over:  # HIT GAME OVER?? MAKHASSOCH YWSL HNA LA KAN GAME OVER NO?
-            return
-        self.counter += 1
-        self.board[int(move[0])][int(move[1])] = player
-        self.print_board()
-        
-        if self.check_for_winner():
-            self.game_over = True
-            if self.winner == self.you:
-                print("YOU WIN!!")  
-                #broadcast a win, have other players print they lost then quit
-                for other_player in other_players:
-                        other_player.send(("WIN" + self.you).encode("utf-8"))
+        try:
+            # i think correct hit player hia bach tayl3bp
+            if self.game_over:  # HIT GAME OVER?? MAKHASSOCH YWSL HNA LA KAN GAME OVER NO?
+                return
+            self.counter += 1
+            self.board[int(move[0])][int(move[1])] = player
+            self.print_board()
+            
+            if self.check_for_winner():
                 self.game_over = True
-
-            else:
-                if self.counter == 36:
-                    print("IT IS A TIE!")
+                if self.winner == self.you:
+                    print("YOU WIN!!")  
+                    #broadcast a win, have other players print they lost then quit
                     for other_player in other_players:
-                        other_player.send("TIE" + self.you.encode("utf-8"))
+                            other_player.send(("WIN" + self.you).encode("utf-8"))
                     self.game_over = True
-                    #broadcast a tie then quit
-            exit()
+
+                else:
+                    if self.counter == 36:
+                        print("IT IS A TIE!")
+                        for other_player in other_players:
+                            other_player.send("TIE" + self.you.encode("utf-8"))
+                        self.game_over = True
+                        #broadcast a tie then quit
+                exit()
+        except IndexError:
+            logging.error("Invalid row or column index. Please choose valid row and column indexes.")
+        except ValueError as e:
+            logging.error(f"Error: {e}")
 
     def check_valid_move(self, move):
-        return self.board[int(move[0])][int(move[1])] == " "
+        try:
+            row, col = int(move[0]), int(move[1])
+            # Check if the given indices are within the valid range (0 to 5 for a 6x6 board)
+            if 0 <= row < self.grid_size and 0 <= col < self.grid_size:
+                return move != self.QUIT_COMMAND and self.board[row][col] == " "
+            else:
+                logging.error("Invalid row or column index. Please choose valid row and column indexes.")
+                return False
+        except ValueError:
+            logging.error("Invalid row or column index. Please enter integer values.")
+        return False
 
     def check_for_winner(self):
         for row in range(6):
@@ -181,6 +213,13 @@ class GameLogic:
             self.game_over = True
             return True
         return False
+    
+    def inform_disconnect(self,disconnected_player, other_players):
+        message = "An error occurred. Game will quit" 
+    
+        for player in other_players:
+            player.send(message.encode("utf-8"))
+            player.close()
 
     def print_board(self):
         print("\n")

@@ -7,25 +7,29 @@ class GameLogic:
     def __init__(self):
         self.QUIT_COMMAND = "quit"
         self.QUIT_TEXT = "Quitting the game."
-        self.board = [[" "] * 6 for _ in range(6)]
+        self.grid_size = 6
+        self.board = [[" "] * self.grid_size for _ in range(self.grid_size)]
         self.turn = "X"
         self.you = "O"
         self.player2 = "X"
         self.player3 = "Y"
         self.winner = None
         self.game_over = False
-
+        self.other_players = []
         self.counter = 0  # to dtermien a tie if all field are full, counter is 36, we have a tie if no winner etc
         logging.basicConfig(filename=f'TicTacLog{self.you}.log', level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
     def connect_to_game(self, host, host_port,player,player_port):  # 1 player hosst game teh otehr run connect to game
+            try:
                 logging.info(f'{self.you} started the game')
                 host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 host_socket.connect((host, host_port))
+                self.other_players.append(host_socket)
                 print("Connected to host")
 
                 player_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 player_socket.connect((player, player_port))
+                self.other_players.append(player_socket)
                 player_socket.send("Hello P2".encode())
                 data = player_socket.recv(1024)
                 message = data.decode()
@@ -39,7 +43,13 @@ class GameLogic:
                 except:
                     print("Failed to connect to P2.")
                 threading.Thread(target=self.handle_connection, args=(host_socket,"P1",[host_socket,player_socket])).start()
-                
+            except socket.error as e:
+                print(f"Socket error: {e}")
+                game.inform_disconnect(None, self.other_players)
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}")
+                game.inform_disconnect(None, self.other_players)
+
 
 
     def handle_connection(self, client_socket,player,other_players):
@@ -114,33 +124,48 @@ class GameLogic:
             return self.you
     # WHAT TO DO IF UR THRONW OUT OF THE LOOP CLOSE TEH CLIENTS?
     def apply_move(self, move, player,other_players):  # idk arguments i guess aybano as we go,
-        # i think correct hit player hia bach tayl3bp
-        if self.game_over:  # HIT GAME OVER?? MAKHASSOCH YWSL HNA LA KAN GAME OVER NO?
-            return
-        self.counter += 1
-        self.board[int(move[0])][int(move[1])] = player
-        self.print_board()
-        
-        if self.check_for_winner():
-            self.game_over = True
-            if self.winner == self.you:
-                print("YOU WIN!!")  
-                #broadcast a win, have other players print they lost then quit
-                for other_player in other_players:
-                        other_player.send(("WIN" + self.you).encode("utf-8"))
+        try:
+            # i think correct hit player hia bach tayl3bp
+            if self.game_over:  # HIT GAME OVER?? MAKHASSOCH YWSL HNA LA KAN GAME OVER NO?
+                return
+            self.counter += 1
+            self.board[int(move[0])][int(move[1])] = player
+            self.print_board()
+            
+            if self.check_for_winner():
                 self.game_over = True
-
-            else:
-                if self.counter == 36:
-                    print("IT IS A TIE!")
+                if self.winner == self.you:
+                    print("YOU WIN!!")  
+                    #broadcast a win, have other players print they lost then quit
                     for other_player in other_players:
-                        other_player.send("TIE" + self.you.encode("utf-8"))
+                            other_player.send(("WIN" + self.you).encode("utf-8"))
                     self.game_over = True
-                    #broadcast a tie then quit
-            exit()
+
+                else:
+                    if self.counter == 36:
+                        print("IT IS A TIE!")
+                        for other_player in other_players:
+                            other_player.send("TIE" + self.you.encode("utf-8"))
+                        self.game_over = True
+                        #broadcast a tie then quit
+                exit()
+        except IndexError:
+            logging.error("Invalid row or column index. Please choose valid row and column indexes.")
+        except ValueError as e:
+            logging.error(f"Error: {e}")
 
     def check_valid_move(self, move):
-        return self.board[int(move[0])][int(move[1])] == " "
+        try:
+            row, col = int(move[0]), int(move[1])
+            # Check if the given indices are within the valid range (0 to 5 for a 6x6 board)
+            if 0 <= row < self.grid_size and 0 <= col < self.grid_size:
+                return move != self.QUIT_COMMAND and self.board[row][col] == " "
+            else:
+                logging.error("Invalid row or column index. Please choose valid row and column indexes.")
+                return False
+        except ValueError:
+            logging.error("Invalid row or column index. Please enter integer values.")
+        return False
 
     def check_for_winner(self):
         for row in range(6):
@@ -188,6 +213,13 @@ class GameLogic:
             self.game_over = True
             return True
         return False
+    
+    def inform_disconnect(self,disconnected_player, other_players):
+        message = "An error occurred. Game will quit" 
+    
+        for player in other_players:
+            player.send(message.encode("utf-8"))
+            player.close()
 
     def print_board(self):
         print("\n")
