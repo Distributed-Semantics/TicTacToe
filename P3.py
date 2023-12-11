@@ -46,8 +46,8 @@ class GameLogic:
                     print("Failed to connect to P2.")
                 threading.Thread(target=self.handle_connection, args=(host_socket,"P1",[host_socket,player_socket])).start()
                 # Start a thread or timer for sending heartbeat messages
-                heartbeat_manager = HeartbeatManager(self.you,self.other_players)
-                threading.Thread(target=heartbeat_manager.send_heartbeat).start()
+                #heartbeat_manager = HeartbeatManager(self.you,self.other_players)
+                #threading.Thread(target=heartbeat_manager.manage_heartbeat).start()
 
             except socket.error as e:
                 print(f"Socket error: {e}")

@@ -44,8 +44,8 @@ class GameLogic:
                 threading.Thread(target=self.handle_connection, args=(p_socket,"P3",[p_socket,host_socket])).start()
                 threading.Thread(target=self.handle_connection, args=(host_socket,"P1",[host_socket,p_socket])).start()
                 # Start a thread or timer for sending heartbeat messages
-                heartbeat_manager = HeartbeatManager(self.you,self.other_players)
-                threading.Thread(target=heartbeat_manager.send_heartbeat).start()
+                #heartbeat_manager = HeartbeatManager(self.you,self.other_players)
+                #threading.Thread(target=heartbeat_manager.manage_heartbeat).start()
                 
 
             except socket.error as e:
