@@ -2,6 +2,8 @@ import socket
 import threading
 import time
 import logging
+from Constants import *
+from HeartbeatManager import HeartbeatManager
 
 class GameLogic:
     def __init__(self):
@@ -19,7 +21,7 @@ class GameLogic:
         self.other_players = []
         # Configure logging to write to a file
         logging.basicConfig(filename=f'TicTacLog{self.you}.log', level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
-
+        
 
     def host_game(self, host, port):  # basically does job fo tournament manager?
         try:
@@ -45,7 +47,10 @@ class GameLogic:
 
             threading.Thread(target=self.handle_connection, args=(player2_socket, [player2_socket,player3_socket],self.player2,1)).start()
             threading.Thread(target=self.handle_connection, args=(player3_socket, [player3_socket,player2_socket],self.player3,0)).start()
-            # shoudl i close it? hit technically u will get the other moves and evrtg mn otehr nodes
+            # Start a thread or timer for sending heartbeat messages
+            heartbeat_manager = HeartbeatManager(self.you,self.other_players)
+            threading.Thread(target=heartbeat_manager.send_heartbeat).start()
+
         
         except socket.error as e:
             print(f"Socket error: {e}")
@@ -232,6 +237,7 @@ class GameLogic:
             player.send(message.encode("utf-8"))
             player.close()
 
+   
     def print_board(self):
         print("\n")
         for row in range(6):

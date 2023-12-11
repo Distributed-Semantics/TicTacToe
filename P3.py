@@ -2,6 +2,8 @@ import socket
 import threading
 import time
 import logging
+from Constants import *
+from HeartbeatManager import HeartbeatManager
 
 class GameLogic:
     def __init__(self):
@@ -43,6 +45,10 @@ class GameLogic:
                 except:
                     print("Failed to connect to P2.")
                 threading.Thread(target=self.handle_connection, args=(host_socket,"P1",[host_socket,player_socket])).start()
+                # Start a thread or timer for sending heartbeat messages
+                heartbeat_manager = HeartbeatManager(self.you,self.other_players)
+                threading.Thread(target=heartbeat_manager.send_heartbeat).start()
+
             except socket.error as e:
                 print(f"Socket error: {e}")
                 game.inform_disconnect(None, self.other_players)
@@ -69,7 +75,6 @@ class GameLogic:
             print(f"Received message: {message} from {player}")
 
             if "disconnect" in message.lower():
-                print(message)
                 self.game_over = True
             elif message.startswith("WIN"):
                 print("YOU LOOSE!")
@@ -220,7 +225,7 @@ class GameLogic:
         for player in other_players:
             player.send(message.encode("utf-8"))
             player.close()
-
+    
     def print_board(self):
         print("\n")
         for row in range(6):

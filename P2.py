@@ -2,6 +2,8 @@ import socket
 import threading
 import time
 import logging
+from Constants import *
+from HeartbeatManager import HeartbeatManager
 
 class GameLogic:
     def __init__(self):
@@ -25,19 +27,27 @@ class GameLogic:
                 logging.info(f'{self.you} started the game')
                 host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 host_socket.connect((host, port))
+                self.other_players.append(host_socket)
                 print("Connected to host")
 
                 player_socket=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 player_socket.bind((player, player_port))
                 player_socket.listen(1)
                 p_socket, player_address = player_socket.accept()
+                self.other_players.append(p_socket)
                 data = p_socket.recv(1024)
                 message = data.decode()
                 if message == "Hello P2":
                     p_socket.send("Hello P3".encode())
+                
                 #send a msg to the host that the player 3 is connected
                 threading.Thread(target=self.handle_connection, args=(p_socket,"P3",[p_socket,host_socket])).start()
                 threading.Thread(target=self.handle_connection, args=(host_socket,"P1",[host_socket,p_socket])).start()
+                # Start a thread or timer for sending heartbeat messages
+                heartbeat_manager = HeartbeatManager(self.you,self.other_players)
+                threading.Thread(target=heartbeat_manager.send_heartbeat).start()
+                
+
             except socket.error as e:
                 print(f"Socket error: {e}")
                 game.inform_disconnect(None, self.other_players)
@@ -122,6 +132,7 @@ class GameLogic:
             return self.player3
         else:
             return self.you
+        
     # WHAT TO DO IF UR THRONW OUT OF THE LOOP CLOSE TEH CLIENTS?
     def apply_move(self, move, player,other_players):  # idk arguments i guess aybano as we go,
         try:
