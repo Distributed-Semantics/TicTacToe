@@ -13,7 +13,7 @@ class GameLogic:
         self.grid_size = 6
         self.board = [[" "] * self.grid_size for _ in range(self.grid_size)]
         self.turn = "X"
-        self.you = "X"
+        self.you = ""
         self.player2 = "Y"
         self.player3 = "O"
         self.winner = None
@@ -22,23 +22,27 @@ class GameLogic:
         self.other_players = []
         # Configure logging to write to a file
         logging.basicConfig(filename=f'TicTacLog{self.you}.log', level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
-        self.host = "localhost"
-        self.port = 9999
-        environment = input("Running locally?")
-        env_lower = environment.lower()
-        if env_lower != "yes":
-            player_number = input("What is your player number?")
-            self.load_config("config.json", player_number)
+        try:
+            self.num_players = int(input("Number of players?"))
+        except ValueError:
+            print("Please enter a valid integer.")
+        self.player_number = input("What is your player number?")
+        self.own_address = "localhost"
+        self.own_port = 10000 - int(self.player_number)
+        self.load_config("config.json", self.player_number)
 
-        
-    def load_config(self, config_file, player):
+    def load_config(self, config_file, player_number):
         try:
             with open(config_file, "r") as f:
                 config_data = json.load(f)
-
-            self.host = config_data[player]["host"]
-            self.port = config_data[player]["port"]
-
+            self.you = config_data[player_number]["symbol"]
+            self.player_symbols = {str(i): config_data.get(str(i), {}).get("symbol", "") for i in range(1, self.num_players + 1)}
+            environment = input("Running locally?")
+            env_lower = environment.lower()
+            if env_lower != "yes":
+                self.own_address = config_data[player_number]["host"]
+                self.own_port = config_data[player_number]["port"]
+               
         except FileNotFoundError:
             print(f"Config file {config_file} not found.")
             logging.info(f"Config file {config_file} not found.")
@@ -51,42 +55,48 @@ class GameLogic:
             print(f"Invalid configuration for node {self.you}.")
             logging.info(f"Invalid configuration for node {self.you}.")
             exit()
-    
-    def host_game(self):  # basically does job fo tournament manager?
+
+    def start_game(self):
+        if int(self.player_number) != self.num_players:
+            self.open_sockets()
+        if self.player_number != "1":
+            print("connect")
+
+    def open_sockets(self):
         try:
             logging.info(f'Started the game')
-            host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # we are using tcp
-            host_socket.bind((self.host, self.port))
-            host_socket.listen(2)  # server needs to listen for 2 connections so that the game can start
-            
-            print("Waiting for players to connect...")
-            player2_socket, player2_address = host_socket.accept()
-            self.other_players.append(player2_socket)
-            print("Player 2 connected!",player2_address)
-            logging.info(f"Player 2 connected! {player2_address}")
-            player3_socket, player3_address = host_socket.accept()
-            self.other_players.append(player3_socket)
-            print("Player 3 connected!", player3_address)
-            print("If you want to exit the game type 'quit'")
-            logging.info(f"Player 3 connected! {player3_address}")
+            host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            host_socket.bind((self.own_address, self.own_port))
+            host_socket.listen(self.num_players-int(self.player_number))
+            print(f"Waiting for {self.num_players-int(self.player_number)} players to connect...")
+            threads = []
 
-            player2_socket.send("All players connected.".encode())
-            player3_socket.send("All players connected.".encode())
+            for i in range(int(self.player_number), self.num_players):
+                player_socket, player_address = host_socket.accept()
+                self.other_players.append(player_socket)
+                print(f"Player {i} connected!", player_address)
+                logging.info(f"Player {i} connected! {player_address}")
+                thread_args = (player_socket, self.other_players.copy(), f"Player {i}", i - 1)
+                thread = threading.Thread(target=self.handle_connection, args=thread_args)
+                threads.append(thread)
+                thread.start()
 
+        # Wait for all threads to finish
+            for thread in threads:
+                thread.join()
+                
+        # Notify all players that they are connected after all threads have finished
+            if self.player_number == "1":
+                for player_socket in self.other_players:
+                    player_socket.send("All players connected.".encode())
 
-            threading.Thread(target=self.handle_connection, args=(player2_socket, [player2_socket,player3_socket],self.player2,1)).start()
-            threading.Thread(target=self.handle_connection, args=(player3_socket, [player3_socket,player2_socket],self.player3,0)).start()
-            # Start a thread or timer for sending heartbeat messages
-            #heartbeat_manager = HeartbeatManager(self.you,self.other_players)
-            #threading.Thread(target=heartbeat_manager.manage_heartbeat).start()
-
-        
         except socket.error as e:
             print(f"Socket error: {e}")
             self.inform_disconnect(None, self.other_players)
         except Exception as e:
-             print(f"An unexpected error occurred: {e}")
-             self.inform_disconnect(None, self.other_players)
+            print(f"An unexpected error occurred: {e}")
+            self.inform_disconnect(None, self.other_players)
+
 
 
     def handle_connection(self,player,other_players,symbol,flag):
@@ -277,7 +287,7 @@ class GameLogic:
 
 def main():
     game = GameLogic()
-    game.host_game()
+    game.start_game()
 
 if __name__ == "__main__":
     main()
