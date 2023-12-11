@@ -2,6 +2,7 @@ import socket
 import threading
 import time
 import logging
+import json
 from Constants import *
 from HeartbeatManager import HeartbeatManager
 
@@ -20,17 +21,49 @@ class GameLogic:
         self.other_players = []
         self.counter = 0  # to dtermien a tie if all field are full, counter is 36, we have a tie if no winner etc
         logging.basicConfig(filename=f'TicTacLog{self.you}.log', level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+        self.host_port = 9999
+        self.host = "localhost"
+        self.player2_port=9998
+        self.player2_address="localhost"
+        environment = input("Running locally?")
+        env_lower = environment.lower()
+        if env_lower != "yes":
+            player_number = input("What is your player number?")
+            self.load_config("config.json", player_number)
+    
+    def load_config(self, config_file, player_number):
+        try:
+            with open(config_file, "r") as f:
+                config_data = json.load(f)
 
-    def connect_to_game(self, host, host_port,player,player_port):  # 1 player hosst game teh otehr run connect to game
+            self.host = config_data["1"]["host"]
+            self.host_port = config_data["1"]["port"]
+            self.player2_address = config_data["2"]["host"]
+            self.player2_port = config_data["2"]["port"]
+
+        except FileNotFoundError:
+            print(f"Config file {config_file} not found.")
+            logging.info(f"Config file {config_file} not found.")
+            exit()
+        except json.JSONDecodeError:
+            print(f"Error decoding JSON in {config_file}.")
+            logging.info(f"Error decoding JSON in {config_file}.")
+            exit()
+        except KeyError:
+            print(f"Invalid configuration for node {self.you}.")
+            logging.info(f"Invalid configuration for node {self.you}.")
+            exit()
+
+    def connect_to_game(self):  # 1 player hosst game teh otehr run connect to game
             try:
                 logging.info(f'{self.you} started the game')
                 host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                host_socket.connect((host, host_port))
+                host_socket.connect((self.host, self.host_port))
                 self.other_players.append(host_socket)
                 print("Connected to host")
 
                 player_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                player_socket.connect((player, player_port))
+                player_socket.connect((self.player2_address, self.player2_port))
                 self.other_players.append(player_socket)
                 player_socket.send("Hello P2".encode())
                 data = player_socket.recv(1024)
@@ -51,10 +84,10 @@ class GameLogic:
 
             except socket.error as e:
                 print(f"Socket error: {e}")
-                game.inform_disconnect(None, self.other_players)
+                self.inform_disconnect(None, self.other_players)
             except Exception as e:
                 print(f"An unexpected error occurred: {e}")
-                game.inform_disconnect(None, self.other_players)
+                self.inform_disconnect(None, self.other_players)
 
 
 
@@ -219,12 +252,12 @@ class GameLogic:
             return True
         return False
     
-    def inform_disconnect(self,disconnected_player, other_players):
-        message = "An error occurred. Game will quit" 
+    def inform_disconnect(self, disconnected_player, other_players):
+        message = "An error occurred. Game will quit"
     
-        for player in other_players:
-            player.send(message.encode("utf-8"))
-            player.close()
+        for player_socket in other_players:
+            player_socket.send(message.encode("utf-8"))
+            player_socket.close()
     
     def print_board(self):
         print("\n")
@@ -233,19 +266,10 @@ class GameLogic:
             if row != 5:
                 print("--------------------------------")
         print("\n")
+        
+def main():
+    game = GameLogic()
+    game.connect_to_game()
 
-game = GameLogic()
-
-environment = input("Running locally?")
-env_lower = environment.lower()
-if env_lower == "yes":
-    port = 9999
-    host = "localhost"
-    player_port=9998
-    player="localhost"
-else:
-    port = 53217
-    host = "svm-11.cs.helsinki.fi"
-    player_port=53217
-    player="svm-11-2.cs.helsinki.fi"
-game.connect_to_game(host, port,player,player_port)
+if __name__ == "__main__":
+    main()

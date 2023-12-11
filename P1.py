@@ -2,6 +2,7 @@ import socket
 import threading
 import time
 import logging
+import json
 from Constants import *
 from HeartbeatManager import HeartbeatManager
 
@@ -21,13 +22,41 @@ class GameLogic:
         self.other_players = []
         # Configure logging to write to a file
         logging.basicConfig(filename=f'TicTacLog{self.you}.log', level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
-        
+        self.host = "localhost"
+        self.port = 9999
+        environment = input("Running locally?")
+        env_lower = environment.lower()
+        if env_lower != "yes":
+            player_number = input("What is your player number?")
+            self.load_config("config.json", player_number)
 
-    def host_game(self, host, port):  # basically does job fo tournament manager?
+        
+    def load_config(self, config_file, player):
+        try:
+            with open(config_file, "r") as f:
+                config_data = json.load(f)
+
+            self.host = config_data[player]["host"]
+            self.port = config_data[player]["port"]
+
+        except FileNotFoundError:
+            print(f"Config file {config_file} not found.")
+            logging.info(f"Config file {config_file} not found.")
+            exit()
+        except json.JSONDecodeError:
+            print(f"Error decoding JSON in {config_file}.")
+            logging.info(f"Error decoding JSON in {config_file}.")
+            exit()
+        except KeyError:
+            print(f"Invalid configuration for node {self.you}.")
+            logging.info(f"Invalid configuration for node {self.you}.")
+            exit()
+    
+    def host_game(self):  # basically does job fo tournament manager?
         try:
             logging.info(f'Started the game')
             host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # we are using tcp
-            host_socket.bind((host, port))
+            host_socket.bind((self.host, self.port))
             host_socket.listen(2)  # server needs to listen for 2 connections so that the game can start
             
             print("Waiting for players to connect...")
@@ -54,10 +83,10 @@ class GameLogic:
         
         except socket.error as e:
             print(f"Socket error: {e}")
-            game.inform_disconnect(None, self.other_players)
+            self.inform_disconnect(None, self.other_players)
         except Exception as e:
              print(f"An unexpected error occurred: {e}")
-             game.inform_disconnect(None, self.other_players)
+             self.inform_disconnect(None, self.other_players)
 
 
     def handle_connection(self,player,other_players,symbol,flag):
@@ -122,10 +151,10 @@ class GameLogic:
                             print("ha next turn lmn",self.turn)
             except socket.error as e:
                 print(f"Socket error: {e}")
-                game.inform_disconnect(None, self.other_players)
+                self.inform_disconnect(None, self.other_players)
             except Exception as e:
                 print(f"An unexpected error occurred: {e}")
-                game.inform_disconnect(None, self.other_players)
+                self.inform_disconnect(None, self.other_players)
 
             
     def next_turn(self):
@@ -246,14 +275,9 @@ class GameLogic:
                 print("--------------------------------")
         print("\n")
 
-game = GameLogic()
+def main():
+    game = GameLogic()
+    game.host_game()
 
-environment = input("Running locally?")
-env_lower = environment.lower()
-if env_lower == "yes":
-    port = 9999
-    host = "localhost"
-else:
-    port = 53217
-    host = "svm-11.cs.helsinki.fi"
-game.host_game(host, port)
+if __name__ == "__main__":
+    main()
