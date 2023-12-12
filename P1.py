@@ -166,7 +166,7 @@ class GameLogic:
                             self.game_over = True
                             print(f"Player {symbol} has disconnected. Game will quit")
                             self.inform_disconnect(symbol,other_players)
-                            break
+                            exit()
                         elif message.startswith("WIN"):
                             print("YOU LOOSE!")
                             self.game_over = True
@@ -306,6 +306,7 @@ class GameLogic:
         for player in other_players:
             player.send(message.encode("utf-8"))
             player.close()
+        exit()
 
    
     def print_board(self):

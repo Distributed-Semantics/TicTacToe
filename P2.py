@@ -137,6 +137,7 @@ class GameLogic:
                 if "disconnect" in message.lower():
                     print(message)
                     self.game_over = True
+                    exit()
                 elif message.startswith("WIN"):
                     print("YOU LOOSE!")
                     self.game_over = True
@@ -300,11 +301,14 @@ class GameLogic:
     
     def inform_disconnect(self,disconnected_player, other_players):
         message = "An error occurred. Game will quit" 
+        if  disconnected_player:
+            message = f"Player {disconnected_player} has disconnected. Game will quit"
     
         for player in other_players:
             player.send(message.encode("utf-8"))
             player.close()
-
+        exit()
+        
     def print_board(self):
         print("\n")
         for row in range(6):
