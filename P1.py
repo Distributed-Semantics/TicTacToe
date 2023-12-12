@@ -182,12 +182,15 @@ class GameLogic:
                             for other_player in other_players:
                                 other_player.send(("next_turn:" + self.turn).encode("utf-8"))
                                 print("ha next turn lmn",self.turn)
-            except socket.error as e:
-                print(f"Socket error: {e}")
-                self.inform_disconnect(None, self.other_players)
+         
+            except (socket.error, BrokenPipeError, ConnectionResetError) as e:
+                print(f"Socket disconected. The game will quit.")
+                exit()
             except Exception as e:
                 print(f"An unexpected error occurred: {e}")
                 self.inform_disconnect(None, self.other_players)
+
+            
                 
         # sm modified it
     def reach_consensus_before_move(self, other_players):

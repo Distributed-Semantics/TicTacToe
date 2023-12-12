@@ -16,8 +16,8 @@ class HeartbeatManager:
         self.logger=logger
 
     def hb_start(self):
-        threading.Thread(target=self.send_heartbeats).start()
-        threading.Thread(target=self.receive_heartbeats).start()
+        threading.Thread(target=self.send_heartbeats,daemon=True).start()
+        threading.Thread(target=self.receive_heartbeats,daemon=True).start()
 
     def send_heartbeats(self):
         while not self.game_over:
@@ -27,6 +27,7 @@ class HeartbeatManager:
                     player.send(message.encode())
                 except socket.error as e:
                     self.logger.info(f"socket error sending heartbeat to {pid}: {e}")
+                    
                 except Exception as e:
                     self.logger.info(f"Error sending heartbeat to {pid}: {e}")
             time.sleep(self.hb_interval) 
@@ -51,6 +52,7 @@ class HeartbeatManager:
         for pid,player in self.other_players.items():
             if time.time() - self.hb_log[pid] > self.timeout:
                 self.logger.info(f"Player {pid} has timed out")
-                player.send("quitting".encode())
+                for pid,player in self.other_players.items():
+                    player.send("quitting".encode())
                 self.game_over = True
                 

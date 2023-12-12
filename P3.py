@@ -100,9 +100,9 @@ class GameLogic:
                 self.hb_players["P2"]=p2_socket
                 
 
-            except socket.error as e:
-                print(f"Socket error: {e}")
-                self.inform_disconnect(None, self.other_players)
+            except (socket.error, BrokenPipeError, ConnectionResetError) as e:
+                print(f"Socket disconected. The game will quit. ")
+                exit()
             except Exception as e:
                 print(f"An unexpected error occurred: {e}")
                 self.inform_disconnect(None, self.other_players)
