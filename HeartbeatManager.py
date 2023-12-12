@@ -51,5 +51,6 @@ class HeartbeatManager:
         for pid,player in self.other_players.items():
             if time.time() - self.hb_log[pid] > self.timeout:
                 self.logger.info(f"Player {pid} has timed out")
+                player.send("quitting".encode())
                 self.game_over = True
                 

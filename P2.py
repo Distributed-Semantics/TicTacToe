@@ -310,7 +310,7 @@ class GameLogic:
         for row in range(6):
             print(" | ".join(self.board[row]))
             if row != 5:
-                print("--------------------------------")
+                print("-----------------------------")
         print("\n")
         
 def main():
