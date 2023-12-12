@@ -120,7 +120,7 @@ class GameLogic:
                 if data.decode() == "ACK":
                     print("ACK received.")
                 heartbeat_manager = HeartbeatManager("P1", self.hb_players,logging.getLogger())
-                heartbeat_manager.hb_start()
+                threading.Thread(target=heartbeat_manager.hb_start, daemon=True).start()
                 while not self.game_over:
                     if self.turn == self.you and flag==1:  # do we do this for turns
                         

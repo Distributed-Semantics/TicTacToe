@@ -123,7 +123,7 @@ class GameLogic:
                 client_socket.send("ACK".encode()) 
                 break
         heartbeat_manager = HeartbeatManager("P1", self.hb_players,logging.getLogger())
-        heartbeat_manager.hb_start()
+        threading.Thread(target=heartbeat_manager.hb_start, daemon=True).start()
         while not self.game_over:
             #print(player)
             #print("after all players con")
