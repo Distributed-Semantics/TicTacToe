@@ -213,6 +213,7 @@ class GameLogic:
                     #broadcast a win, have other players print they lost then quit
                     for other_player in other_players:
                             other_player.send(("WIN" + self.you).encode("utf-8"))
+                            
                     self.game_over = True
 
                 else:
