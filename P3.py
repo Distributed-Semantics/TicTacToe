@@ -5,6 +5,7 @@ import logging
 import json
 from Constants import *
 from HeartbeatManager import HeartbeatManager
+from ConsensusManager import ConsensusManager
 
 class GameLogic:
     def __init__(self):
@@ -30,6 +31,11 @@ class GameLogic:
         if env_lower != "yes":
             player_number = input("What is your player number?")
             self.load_config("config.json", player_number)
+            
+        
+        #sm modified it
+        # Create a ConsensusManager instance with all players
+        self.consensus_manager = ConsensusManager()
     
     def load_config(self, config_file, player_number):
         try:
@@ -72,6 +78,10 @@ class GameLogic:
                     print("P2 and P3 are connected.")
                 else:
                     print("Failed to connect to P2.")
+                # sm modified it from here
+                consensus_manager = ConsensusManager()
+                consensus_manager.start_consensus()
+                
                 try:
                     print("trying to connect to p2")
                     threading.Thread(target=self.handle_connection, args=(player_socket,"P2",[player_socket,host_socket])).start()
@@ -81,6 +91,7 @@ class GameLogic:
                 # Start a thread or timer for sending heartbeat messages
                 #heartbeat_manager = HeartbeatManager(self.you,self.other_players)
                 #threading.Thread(target=heartbeat_manager.manage_heartbeat).start()
+                
 
             except socket.error as e:
                 print(f"Socket error: {e}")
@@ -88,6 +99,11 @@ class GameLogic:
             except Exception as e:
                 print(f"An unexpected error occurred: {e}")
                 self.inform_disconnect(None, self.other_players)
+                
+        # sm modified it
+    def get_game_state(self):
+        # Return the current game state (in this case, the board)
+        return self.board
 
 
 
@@ -127,6 +143,9 @@ class GameLogic:
                 self.turn=message.split(":")[1]
                 # If the message from the host indicates it's this player's turn, make a move
                 if message.split(":")[1] == self.you:
+                    # sm modified it
+                    self.reach_consensus_before_move(other_players)
+                    # to here
                     while True:
                         move = input("Enter your move: ")
                         if move.lower() == self.QUIT_COMMAND:
@@ -151,6 +170,13 @@ class GameLogic:
                 print("No data received from server.")
                 time.sleep(1)
 
+        # sm modified it
+    def reach_consensus_before_move(self, other_players):
+        print("Requesting consensus before making a move...")
+        if not self.consensus_manager.start_consensus():
+            self.inform_disconnect(None, other_players)
+            return
+        print("Consensus reached. Proceeding with the move.")       
                 
                  
     def next_turn(self):
