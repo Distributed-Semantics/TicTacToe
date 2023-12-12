@@ -14,8 +14,7 @@ class GameLogic:
         self.board = [[" "] * self.grid_size for _ in range(self.grid_size)]
         self.turn = "X"
         self.you = ""
-        self.player2 = "Y"
-        self.player3 = "O"
+        self.last = ""
         self.winner = None
         self.game_over = False
         self.counter = 0  # to dtermien a tie if all field are full, counter is 36, we have a tie if no winner etc
@@ -156,9 +155,6 @@ class GameLogic:
                         move, player_symbol = data.decode().split(":")[1].split(",")[:2], data.decode().split(":")[1].split(",")[2]
                         self.apply_move(move, player_symbol,other_players)
                         self.turn = self.next_turn()
-                        for other_player in other_players:
-                            other_player.send(("next_turn:" + self.turn).encode("utf-8"))
-                            print("ha next turn lmn",self.turn)
             except socket.error as e:
                 print(f"Socket error: {e}")
                 self.inform_disconnect(None, self.other_players)
@@ -168,12 +164,20 @@ class GameLogic:
 
             
     def next_turn(self):
-        if self.turn == self.you:
-            return self.player2
-        elif self.turn == self.player2:
-            return self.player3
-        else:
-            return self.you
+        # If at the last member of the list, return to first player
+        if self.turn == self.last:
+            return "X"
+        try:
+            # Find the index of the current turn symbol in the player_symbols list
+            current_turn_index = list(self.player_symbols.values()).index(self.turn)
+
+            # Get the next player's turn
+            next_turn_index = (current_turn_index + 1) % self.num_players
+            next_turn_symbol = list(self.player_symbols.values())[next_turn_index]
+
+            return next_turn_symbol
+        
+        
     # WHAT TO DO IF UR THRONW OUT OF THE LOOP CLOSE TEH CLIENTS?
     def apply_move(self, move, player,other_players):  # idk arguments i guess aybano as we go,
         try:
