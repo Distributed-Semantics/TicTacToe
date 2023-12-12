@@ -27,8 +27,8 @@ class GameLogic:
         self.port = 9999
         self.own_port=9998
         self.own_address="localhost"
-        self.h2_port=1548
-        self.hb_port=2348
+        self.h2_port=53218
+        self.hb_port=53219
         environment = input("Running locally?")
         env_lower = environment.lower()
         if env_lower != "yes":
@@ -45,8 +45,10 @@ class GameLogic:
 
             self.host = config_data["1"]["host"]
             self.port = config_data["1"]["port"]
+            self.h2_port = config_data["1"]["hb_port"]
             self.own_address = config_data[player_number]["host"]
             self.own_port = config_data[player_number]["port"]
+            self.hb_port = config_data[player_number]["hb_port"]
 
         except FileNotFoundError:
             print(f"Config file {config_file} not found.")

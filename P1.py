@@ -21,7 +21,7 @@ class GameLogic:
         self.counter = 0  # to dtermien a tie if all field are full, counter is 36, we have a tie if no winner etc
         self.other_players = []
         self.hb_players={}
-        self.hb1_port=1548
+        self.hb1_port=53218
         # Configure logging to write to a file
         logging.basicConfig(filename=f'TicTacLog{self.you}.log', level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
         self.host = "localhost"
@@ -44,6 +44,7 @@ class GameLogic:
 
             self.host = config_data[player]["host"]
             self.port = config_data[player]["port"]
+            self.hb1_port=config_data[player]["hb1_port"]
 
         except FileNotFoundError:
             print(f"Config file {config_file} not found.")
