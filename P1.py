@@ -3,7 +3,6 @@ import threading
 import time
 import logging
 import json
-from Constants import *
 from HeartbeatManager import HeartbeatManager
 
 class GameLogic:
@@ -20,6 +19,8 @@ class GameLogic:
         self.game_over = False
         self.counter = 0  # to dtermien a tie if all field are full, counter is 36, we have a tie if no winner etc
         self.other_players = []
+        self.hb_players={}
+        self.hb1_port=1548
         # Configure logging to write to a file
         logging.basicConfig(filename=f'TicTacLog{self.you}.log', level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
         self.host = "localhost"
@@ -62,6 +63,9 @@ class GameLogic:
             print("Waiting for players to connect...")
             player2_socket, player2_address = host_socket.accept()
             self.other_players.append(player2_socket)
+
+            
+
             print("Player 2 connected!",player2_address)
             logging.info(f"Player 2 connected! {player2_address}")
             player3_socket, player3_address = host_socket.accept()
@@ -73,13 +77,16 @@ class GameLogic:
             player2_socket.send("All players connected.".encode())
             player3_socket.send("All players connected.".encode())
 
+            hb1_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # we are using tcp
+            hb1_socket.bind((self.host, self.hb1_port))
+            hb1_socket.listen(2)
+            hb21_socket, hb21_address = hb1_socket.accept()
+            hb31_socket, hb31_address = hb1_socket.accept()
+            self.hb_players["P2"]=hb21_socket
+            self.hb_players["P3"]=hb31_socket
 
             threading.Thread(target=self.handle_connection, args=(player2_socket, [player2_socket,player3_socket],self.player2,1)).start()
             threading.Thread(target=self.handle_connection, args=(player3_socket, [player3_socket,player2_socket],self.player3,0)).start()
-            # Start a thread or timer for sending heartbeat messages
-            #heartbeat_manager = HeartbeatManager(self.you,self.other_players)
-            #threading.Thread(target=heartbeat_manager.manage_heartbeat).start()
-
         
         except socket.error as e:
             print(f"Socket error: {e}")
@@ -94,6 +101,8 @@ class GameLogic:
                 data = player.recv(1024)  # wait for ACK
                 if data.decode() == "ACK":
                     print("ACK received.")
+                heartbeat_manager = HeartbeatManager("P1", self.hb_players,logging.getLogger())
+                heartbeat_manager.hb_start()
                 while not self.game_over:
                     if self.turn == self.you and flag==1:  # do we do this for turns
                         move = input("Enter a move (row,column): ")
@@ -143,12 +152,13 @@ class GameLogic:
                             print("IT IS A TIE!")
                             self.game_over = True
                             exit()
-                        move, player_symbol = data.decode().split(":")[1].split(",")[:2], data.decode().split(":")[1].split(",")[2]
-                        self.apply_move(move, player_symbol,other_players)
-                        self.turn = self.next_turn()
-                        for other_player in other_players:
-                            other_player.send(("next_turn:" + self.turn).encode("utf-8"))
-                            print("ha next turn lmn",self.turn)
+                        elif message.startswith("move:"):
+                            move, player_symbol = data.decode().split(":")[1].split(",")[:2], data.decode().split(":")[1].split(",")[2]
+                            self.apply_move(move, player_symbol,other_players)
+                            self.turn = self.next_turn()
+                            for other_player in other_players:
+                                other_player.send(("next_turn:" + self.turn).encode("utf-8"))
+                                print("ha next turn lmn",self.turn)
             except socket.error as e:
                 print(f"Socket error: {e}")
                 self.inform_disconnect(None, self.other_players)

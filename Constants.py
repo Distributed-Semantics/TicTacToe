@@ -1,2 +1,0 @@
-HEART_BEAT_TEXT = "heartbeat"
-HEART_BEAT_TIME = 5

@@ -3,7 +3,7 @@ import threading
 import time
 import logging
 import json
-from Constants import *
+import traceback
 from HeartbeatManager import HeartbeatManager
 
 class GameLogic:
@@ -19,12 +19,15 @@ class GameLogic:
         self.winner = None
         self.game_over = False
         self.other_players = []
+        self.hb_players = {}
         self.counter = 0  # to determine a tie if all fields are full, counter is 36, we have a tie if no winner etc
         logging.basicConfig(filename=f'TicTacLog{self.you}.log', level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
         self.host = "localhost"
         self.port = 9999
         self.own_port=9998
         self.own_address="localhost"
+        self.h2_port=1548
+        self.hb_port=2348
         environment = input("Running locally?")
         env_lower = environment.lower()
         if env_lower != "yes":
@@ -77,9 +80,18 @@ class GameLogic:
                 #send a msg to the host that the player 3 is connected
                 threading.Thread(target=self.handle_connection, args=(p_socket,"P3",[p_socket,host_socket])).start()
                 threading.Thread(target=self.handle_connection, args=(host_socket,"P1",[host_socket,p_socket])).start()
-                # Start a thread or timer for sending heartbeat messages
-                #heartbeat_manager = HeartbeatManager(self.you,self.other_players)
-                #threading.Thread(target=heartbeat_manager.manage_heartbeat).start()
+                
+                h2_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                h2_socket.connect((self.host, self.h2_port))
+
+                hb_socket=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                hb_socket.bind((self.own_address,  self.hb_port))
+                hb_socket.listen(1)
+                p3_socket, p3_address = hb_socket.accept()
+                
+                self.hb_players["P1"]=h2_socket
+
+                self.hb_players["P3"]=p3_socket
                 
 
             except socket.error as e:
@@ -87,6 +99,7 @@ class GameLogic:
                 self.inform_disconnect(None, self.other_players)
             except Exception as e:
                 print(f"An unexpected error occurred: {e}")
+                traceback.print_exc() 
                 self.inform_disconnect(None, self.other_players)
     
 
@@ -99,12 +112,14 @@ class GameLogic:
                     print("If you want to exit the game type 'quit'")
                     client_socket.send("ACK".encode())  
                     break
+            heartbeat_manager = HeartbeatManager("P1", self.hb_players,logging.getLogger())
+            heartbeat_manager.hb_start()
             while not self.game_over:
-                print("after all players con")
-                print(player)
+                #print("after all players con")
+                #print(player)
                 data = client_socket.recv(1024)
                 message = data.decode()
-                print(f"Received message: {message} from {player}")
+                #print(f"Received message: {message} from {player}")
 
                 if "disconnect" in message.lower():
                     print(message)
@@ -155,6 +170,7 @@ class GameLogic:
             self.inform_disconnect(None, self.other_players)
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
+            traceback.print_exc() 
             self.inform_disconnect(None, self.other_players)
 
                 

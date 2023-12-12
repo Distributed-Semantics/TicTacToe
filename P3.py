@@ -3,7 +3,6 @@ import threading
 import time
 import logging
 import json
-from Constants import *
 from HeartbeatManager import HeartbeatManager
 
 class GameLogic:
@@ -19,12 +18,15 @@ class GameLogic:
         self.winner = None
         self.game_over = False
         self.other_players = []
+        self.hb_players = {}
         self.counter = 0  # to dtermien a tie if all field are full, counter is 36, we have a tie if no winner etc
         logging.basicConfig(filename=f'TicTacLog{self.you}.log', level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
         self.host_port = 9999
         self.host = "localhost"
         self.player2_port=9998
         self.player2_address="localhost"
+        self.p1_port=1548
+        self.p2_port=2348
         environment = input("Running locally?")
         env_lower = environment.lower()
         if env_lower != "yes":
@@ -78,9 +80,15 @@ class GameLogic:
                 except:
                     print("Failed to connect to P2.")
                 threading.Thread(target=self.handle_connection, args=(host_socket,"P1",[host_socket,player_socket])).start()
-                # Start a thread or timer for sending heartbeat messages
-                #heartbeat_manager = HeartbeatManager(self.you,self.other_players)
-                #threading.Thread(target=heartbeat_manager.manage_heartbeat).start()
+                
+                p1_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                p1_socket.connect((self.host, self.p1_port))
+                p2_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                p2_socket.connect((self.host, self.p2_port))
+                
+                self.hb_players["P1"]= p1_socket
+                self.hb_players["P2"]=p2_socket
+                
 
             except socket.error as e:
                 print(f"Socket error: {e}")
@@ -99,13 +107,14 @@ class GameLogic:
                 print("If you want to exit the game type 'quit'")
                 client_socket.send("ACK".encode()) 
                 break
-
+        heartbeat_manager = HeartbeatManager("P1", self.hb_players,logging.getLogger())
+        heartbeat_manager.hb_start()
         while not self.game_over:
-            print(player)
-            print("after all players con")
+            #print(player)
+            #print("after all players con")
             data = client_socket.recv(1024)
             message = data.decode()
-            print(f"Received message: {message} from {player}")
+            #print(f"Received message: {message} from {player}")
 
             if "disconnect" in message.lower():
                 self.game_over = True
