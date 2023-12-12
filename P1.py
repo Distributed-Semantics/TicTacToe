@@ -44,7 +44,7 @@ class GameLogic:
 
             self.host = config_data[player]["host"]
             self.port = config_data[player]["port"]
-            self.hb1_port=config_data[player]["hb1_port"]
+            self.hb1_port=config_data[player]["hb_port"]
 
         except FileNotFoundError:
             print(f"Config file {config_file} not found.")
@@ -82,7 +82,7 @@ class GameLogic:
 
             player2_socket.send("All players connected.".encode())
             player3_socket.send("All players connected.".encode())
-            
+            logging.info("All players connected.")
              # sm modified it from here
             print("All players connected. Starting consensus...")
             if not self.consensus_manager.start_consensus():
@@ -169,7 +169,7 @@ class GameLogic:
                             self.inform_disconnect(symbol,other_players)
                             exit()
                         elif message.startswith("WIN"):
-                            print("YOU LOOSE!")
+                            print("YOU LOSE!")
                             self.game_over = True
                             exit()
                         elif message.startswith("TIE"):
@@ -182,7 +182,6 @@ class GameLogic:
                             self.turn = self.next_turn()
                             for other_player in other_players:
                                 other_player.send(("next_turn:" + self.turn).encode("utf-8"))
-                                print("ha next turn lmn",self.turn)
          
             except (socket.error, BrokenPipeError, ConnectionResetError) as e:
                 print(f"Socket disconected. The game will quit.")
@@ -310,6 +309,7 @@ class GameLogic:
         for player in other_players:
             player.send(message.encode("utf-8"))
             player.close()
+        logging.info("Disconnect informed, quitting.")
         exit()
 
    

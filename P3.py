@@ -70,7 +70,7 @@ class GameLogic:
                 host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 host_socket.connect((self.host, self.host_port))
                 self.other_players.append(host_socket)
-                print("Connected to host")
+                print("Connected to P1")
 
                 player_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 player_socket.connect((self.player2_address, self.player2_port))
@@ -87,7 +87,7 @@ class GameLogic:
                 consensus_manager.start_consensus()
                 
                 try:
-                    print("trying to connect to p2")
+                    print("Trying to connect to P2.")
                     threading.Thread(target=self.handle_connection, args=(player_socket,"P2",[player_socket,host_socket])).start()
                 except:
                     print("Failed to connect to P2.")
@@ -103,7 +103,7 @@ class GameLogic:
                 
 
             except (socket.error, BrokenPipeError, ConnectionResetError) as e:
-                print(f"Socket disconected. The game will quit. {e} ")
+                print(f"Socket disconnected. The game will quit. {e} ")
                 # exit()
             except Exception as e:
                 print(f"An unexpected error occurred: {e}")
@@ -121,7 +121,6 @@ class GameLogic:
             data = client_socket.recv(1024)
             if data.decode() == "All players connected.":
                 print("All players connected.")
-                print("If you want to exit the game type 'quit'")
                 client_socket.send("ACK".encode()) 
                 break
         heartbeat_manager = HeartbeatManager("P1", self.hb_players,logging.getLogger())
@@ -138,7 +137,7 @@ class GameLogic:
                 self.game_over = True
                 exit()
             elif message.startswith("WIN"):
-                print("YOU LOOSE!")
+                print("YOU LOSE!")
                 self.game_over = True
                 exit()
             elif message.startswith("TIE"):
@@ -146,12 +145,10 @@ class GameLogic:
                 self.game_over = True
                 exit()
             elif message.startswith("move:"):
-                print("wst move")
                 move, player_symbol = data.decode().split(":")[1].split(",")[:2], data.decode().split(":")[1].split(",")[2]
                 if player_symbol != self.you:
                     self.apply_move(move, player_symbol,other_players)
             elif message.startswith("next_turn:"):
-                print("wst next turn",message.split(":")[1])
                 self.turn=message.split(":")[1]
                 # If the message from the host indicates it's this player's turn, make a move
                 if message.split(":")[1] == self.you:
@@ -173,13 +170,12 @@ class GameLogic:
                             # Include the player's symbol in the move message
                             for other_player in other_players:
                                 other_player.send(("move:" + move + "," + self.you).encode("utf-8"))
-                                print("tsayft")
                             break
                         else:
-                            print("invalid move. Try Again.")
+                            print("Invalid move. Try Again.")
             else:
-                print("messa",message)
-                print("No data received from server.")
+                # print("messa",message)
+                # print("No data received from server.")
                 time.sleep(1)
 
         # sm modified it
@@ -298,7 +294,9 @@ class GameLogic:
         for player in other_players:
             player.send(message.encode("utf-8"))
             player.close()
+        logging.info("Disconnect informed, quitting.")
         exit()
+
     def print_board(self):
         print("\n")
         for row in range(6):
