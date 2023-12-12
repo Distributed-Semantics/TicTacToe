@@ -1,15 +1,18 @@
 {
     "1": {
       "host": "svm-11.cs.helsinki.fi",
-      "port": 53217
+      "port": 53217,
+      "hb_port": 53218
     },
     "2": {
       "host": "svm-11-2.cs.helsinki.fi",
-      "port": 53217
+      "port": 53217,
+      "hb_port": 53218
     },
     "3": {
       "host": "svm-11-3.cs.helsinki.fi",
-      "port": 53217
+      "port": 53217,
+      "hb_port": 53218
     }
   }
   

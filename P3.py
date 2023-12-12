@@ -26,8 +26,8 @@ class GameLogic:
         self.host = "localhost"
         self.player2_port=9998
         self.player2_address="localhost"
-        self.p1_port=1548
-        self.p2_port=2348
+        self.p1_port=53218
+        self.p2_port=53219
         environment = input("Running locally?")
         env_lower = environment.lower()
         if env_lower != "yes":
@@ -46,8 +46,10 @@ class GameLogic:
 
             self.host = config_data["1"]["host"]
             self.host_port = config_data["1"]["port"]
+            self.p1_port = config_data["1"]["hb_port"]
             self.player2_address = config_data["2"]["host"]
             self.player2_port = config_data["2"]["port"]
+            self.p2_port = config_data["2"]["hb_port"]
 
         except FileNotFoundError:
             print(f"Config file {config_file} not found.")
@@ -101,8 +103,8 @@ class GameLogic:
                 
 
             except (socket.error, BrokenPipeError, ConnectionResetError) as e:
-                print(f"Socket disconected. The game will quit. ")
-                exit()
+                print(f"Socket disconected. The game will quit. {e} ")
+                # exit()
             except Exception as e:
                 print(f"An unexpected error occurred: {e}")
                 self.inform_disconnect(None, self.other_players)
