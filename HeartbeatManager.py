@@ -15,6 +15,9 @@ class HeartbeatManager:
         self.timeout=10
         self.logger=logger
 
+    def set_geme_over(self,is_game_over):
+        self.game_over = is_game_over
+
     def hb_start(self):
         threading.Thread(target=self.send_heartbeats,daemon=True).start()
         threading.Thread(target=self.receive_heartbeats,daemon=True).start()
@@ -49,10 +52,12 @@ class HeartbeatManager:
             time.sleep(self.hb_interval)
 
     def check_heartbeats(self):
-        for pid,player in self.other_players.items():
-            if time.time() - self.hb_log[pid] > self.timeout:
-                self.logger.info(f"Player {pid} has timed out")
+        while not self.game_over:
+            if len(self.hb_log) > 0:
                 for pid,player in self.other_players.items():
-                    player.send("quitting".encode())
-                self.game_over = True
+                    if time.time() - self.hb_log[pid] > self.timeout:
+                        self.logger.info(f"Player {pid} has timed out")
+                        for pid,player in self.other_players.items():
+                            player.send("quitting".encode())
+                        self.game_over = True
                 

@@ -126,8 +126,8 @@ class GameLogic:
                     print("All players connected.")
                     client_socket.send("ACK".encode())  
                     break
-            heartbeat_manager = HeartbeatManager("P1", self.hb_players,logging.getLogger())
-            threading.Thread(target=heartbeat_manager.hb_start, daemon=True).start()
+            self.heartbeat_manager = HeartbeatManager("P1", self.hb_players,logging.getLogger())
+            threading.Thread(target=self.heartbeat_manager.hb_start, daemon=True).start()
             while not self.game_over:
                 #print("after all players con")
                 #print(player)
@@ -142,10 +142,12 @@ class GameLogic:
                 elif message.startswith("WIN"):
                     print("YOU LOSE!")
                     self.game_over = True
+                    self.close_game()
                     exit()
                 elif message.startswith("TIE"):
                     print("IT IS A TIE!")
                     self.game_over = True
+                    self.close_game()
                     exit()
                 elif message.startswith("move:"):
                     move, player_symbol = data.decode().split(":")[1].split(",")[:2], data.decode().split(":")[1].split(",")[2]
@@ -307,6 +309,18 @@ class GameLogic:
             player.close()
         logging.info("Disconnect informed, quitting.")
         exit()
+
+    def close_game(self):
+        self.heartbeat_manager.set_geme_over(self.game_over)
+        # Close all player sockets
+        #for player_socket in self.other_players:
+        #    player_socket.close()
+
+        # Close heartbeat sockets
+        #for hb_socket in self.hb_players.values():
+         #   hb_socket.close()
+
+        print("Game is closed.")
         
     def print_board(self):
         print("\n")
