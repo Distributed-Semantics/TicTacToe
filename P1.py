@@ -337,7 +337,6 @@ class GameLogic:
         exit()
 
     def is_hb_stopped(self):
-        self.main_logger.info("is_hb_stopped")
         for pid,socket in self.hb_players.items():
             if(self.is_socket_closed(socket)):
                 self.main_logger.info("No heart beat messages, quitting.")
