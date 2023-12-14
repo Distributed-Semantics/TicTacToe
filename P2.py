@@ -22,7 +22,6 @@ class GameLogic:
         self.other_players = []
         self.hb_players = {}
         self.counter = 0  # to determine a tie if all fields are full, counter is 36, we have a tie if no winner etc
-        logging.basicConfig(filename=f'TicTacLog{self.you}.log', level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
         self.host = "localhost"
         self.port = 9999
         self.own_port=9998
@@ -37,6 +36,31 @@ class GameLogic:
         #sm modified it
         # Create a ConsensusManager instance with all players
         self.consensus_manager = ConsensusManager()
+        self.configure_logging()
+
+    def configure_logging(self):
+            # Configure logging for the main log file
+            self.main_logger = logging.getLogger('main')
+            self.main_logger.setLevel(logging.DEBUG)
+
+            # Add a FileHandler for the main log file
+            self.main_logger.addHandler(logging.FileHandler(f'TicTacLog{self.you}.log'))
+
+            # Create a formatter and add it to the handler
+            formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+            self.main_logger.handlers[0].setFormatter(formatter)
+
+            # Configure logging for the heartbeat log file
+            self.heartbeat_logger = logging.getLogger('heartbeat')
+            self.heartbeat_logger.setLevel(logging.DEBUG)
+
+            # Add a FileHandler for the heartbeat log file
+            self.heartbeat_logger.addHandler(logging.FileHandler(f'HeartbeatLog{self.you}.log'))
+
+            # Create a formatter and add it to the handler
+            formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+            self.heartbeat_logger.handlers[0].setFormatter(formatter)
+        
             
     def load_config(self, config_file, player_number):
         try:
@@ -52,22 +76,22 @@ class GameLogic:
 
         except FileNotFoundError:
             print(f"Config file {config_file} not found.")
-            logging.info(f"Config file {config_file} not found.")
+            self.main_logger.info(f"Config file {config_file} not found.")
             exit()
         except json.JSONDecodeError:
             print(f"Error decoding JSON in {config_file}.")
-            logging.info(f"Error decoding JSON in {config_file}.")
+            self.main_logger.info(f"Error decoding JSON in {config_file}.")
             exit()
         except KeyError:
             print(f"Invalid configuration for node {self.you}.")
-            logging.info(f"Invalid configuration for node {self.you}.")
+            self.main_logger.info(f"Invalid configuration for node {self.you}.")
             exit()
 
 
     def connect_to_game(self):  # 1 player hosst game teh otehr run connect to game
             try:
                 
-                logging.info(f'{self.you} started the game')
+                self.main_logger.info(f'{self.you} started the game')
                 host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 host_socket.connect((self.host, self.port))
                 self.other_players.append(host_socket)
@@ -126,7 +150,7 @@ class GameLogic:
                     print("All players connected.")
                     client_socket.send("ACK".encode())  
                     break
-            self.heartbeat_manager = HeartbeatManager("P1", self.hb_players,logging.getLogger())
+            self.heartbeat_manager = HeartbeatManager("P3", self.hb_players,self.heartbeat_logger)
             threading.Thread(target=self.heartbeat_manager.hb_start, daemon=True).start()
             while not self.game_over:
                 #print("after all players con")
@@ -170,8 +194,8 @@ class GameLogic:
                                 break
                             elif self.check_valid_move(move.split(",")):
                                 self.apply_move(move.split(","), self.you,other_players)
-                                logging.info(f"Movement {self.you} {move}")
-                                logging.info(f"Board {self.board}")
+                                self.main_logger.info(f"Movement {self.you} {move}")
+                                self.main_logger.info(f"Board {self.board}")
                                 # Include the player's symbol in the move message
                                 for other_player in other_players:
                                     other_player.send(("move:" + move + "," + self.you).encode("utf-8"))
@@ -235,9 +259,9 @@ class GameLogic:
                         #broadcast a tie then quit
                 exit()
         except IndexError:
-            logging.error("Invalid row or column index. Please choose valid row and column indexes.")
+            self.main_logger.error("Invalid row or column index. Please choose valid row and column indexes.")
         except ValueError as e:
-            logging.error(f"Error: {e}")
+            self.main_logger.error(f"Error: {e}")
 
     def check_valid_move(self, move):
         try:
@@ -246,10 +270,10 @@ class GameLogic:
             if 0 <= row < self.grid_size and 0 <= col < self.grid_size:
                 return move != self.QUIT_COMMAND and self.board[row][col] == " "
             else:
-                logging.error("Invalid row or column index. Please choose valid row and column indexes.")
+                self.main_logger.error("Invalid row or column index. Please choose valid row and column indexes.")
                 return False
         except ValueError:
-            logging.error("Invalid row or column index. Please enter integer values.")
+            self.main_logger.error("Invalid row or column index. Please enter integer values.")
         return False
 
     def check_for_winner(self):
@@ -307,7 +331,7 @@ class GameLogic:
         for player in other_players:
             player.send(message.encode("utf-8"))
             player.close()
-        logging.info("Disconnect informed, quitting.")
+        self.main_logger.info("Disconnect informed, quitting.")
         exit()
 
     def close_game(self):
