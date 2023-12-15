@@ -12,14 +12,19 @@ class GameLogic:
         self.QUIT_TEXT = "Quitting the game."
         self.grid_size = 6
         self.board = [[" "] * self.grid_size for _ in range(self.grid_size)]
+        # Current turn
         self.turn = "X"
+        # Symbol for player. player2 and player3 are symbols for next players in order
         self.you = "X"
         self.player2 = "Y"
         self.player3 = "O"
         self.winner = None
         self.game_over = False
-        self.counter = 0  # to dtermien a tie if all field are full, counter is 36, we have a tie if no winner etc
+        # Counter for turns played
+        self.counter = 0
+        # Sockets list for connections to other players
         self.other_players = []
+        # Sockets list for heartbeat connection to other players
         self.hb_players={}
         self.hb1_port=53218
         self.host = "localhost"
@@ -58,6 +63,7 @@ class GameLogic:
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         self.heartbeat_logger.handlers[0].setFormatter(formatter)
         
+    # Getting connection info from config
     def load_config(self, config_file, player):
         try:
             with open(config_file, "r") as f:
@@ -80,10 +86,11 @@ class GameLogic:
             self.main_logger.info(f"Invalid configuration for node {self.you}.")
             exit()
     
-    def host_game(self):  # basically does job fo tournament manager?
+    # Opening sockets for other players
+    def host_game(self):  
         try:
             self.main_logger.info(f'Started the game')
-            host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # we are using tcp
+            host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
             host_socket.bind((self.host, self.port))
             host_socket.listen(2)  # server needs to listen for 2 connections so that the game can start
             
@@ -113,7 +120,7 @@ class GameLogic:
             print("Consensus reached. Starting the game.")
             # to here
 
-            hb1_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # we are using tcp
+            hb1_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
             hb1_socket.bind((self.host, self.hb1_port))
             hb1_socket.listen(2)
             hb21_socket, hb21_address = hb1_socket.accept()
@@ -136,6 +143,7 @@ class GameLogic:
         # Return the current game state (in this case, the board)
         return self.board
 
+    # Handles individual socket connection and messages
     def handle_connection(self,player,other_players,symbol,flag):
             try:
                 self.is_hb_stopped()
@@ -145,7 +153,7 @@ class GameLogic:
                 self.heartbeat_manager = HeartbeatManager("P1", self.hb_players,self.heartbeat_logger)
                 threading.Thread(target=self.heartbeat_manager.hb_start, daemon=True).start()
                 while not self.game_over:
-                    if self.turn == self.you and flag==1:  # do we do this for turns
+                    if self.turn == self.you and flag==1: 
                         
                         # sm modified it
                         self.reach_consensus_before_move(other_players)
@@ -165,24 +173,18 @@ class GameLogic:
                                 )  
                                 self.main_logger.info(f"Movement {self.you} {move}")
                                 self.main_logger.info(f"Board {self.board}")
-                                # hadi wstah should have smtg fo share game state w keep track of games state
-                                #is this ok to handle turns
-                                    # idk maybe look into mroe of how ur gonna ensure consistency w synchro han
-                            # invalid move
+
                                 self.turn = self.next_turn()
                                 for other_player in other_players:
                                     other_player.send(("move:" + move + "," + self.you).encode("utf-8"))
                                     other_player.send(("next_turn:" + self.turn).encode("utf-8"))
                                 print("Valid move, to the next!")                     
                             else:
-                                print("Invalid move!")  # what to do in this case? i guess you can enter a new mve hit rak wst loop
+                                print("Invalid move!")
                     elif self.turn==symbol:
-                        # take in the data received from other players, check why bdbt this nbr
                         data = player.recv(1024)
                         message=data.decode()
                         if not data:
-                            # why close clients HNA I GUESS FAULT TOLERANCE
-                            # IF SMTG GOES DOWN WHAT TP DO? do we just lose teh con
                             print("no data from ", player)
                             break
                         elif "quitting" in message.lower():
@@ -224,7 +226,7 @@ class GameLogic:
             return
         print("Consensus reached. Proceeding with the move.")
 
-            
+    # Determine who has next turn        
     def next_turn(self):
         if self.turn == self.you:
             return self.player2
@@ -232,11 +234,10 @@ class GameLogic:
             return self.player3
         else:
             return self.you
-    # WHAT TO DO IF UR THRONW OUT OF THE LOOP CLOSE TEH CLIENTS?
-    def apply_move(self, move, player,other_players):  # idk arguments i guess aybano as we go,
+    # Check if a move is valid
+    def apply_move(self, move, player,other_players):
         try:
-            # i think correct hit player hia bach tayl3bp
-            if self.game_over:  # HIT GAME OVER?? MAKHASSOCH YWSL HNA LA KAN GAME OVER NO?
+            if self.game_over:  
                 return
             self.counter += 1
             self.board[int(move[0])][int(move[1])] = player
@@ -258,7 +259,7 @@ class GameLogic:
                             other_player.send("TIE" + self.you.encode("utf-8"))
                         self.game_over = True
                         #broadcast a tie then quit
-                exit()  # should you exit if winner found or hwats the next step thatw e have to do
+                exit()  
         except IndexError:
             self.main_logger.error("Invalid row or column index. Please choose valid row and column indexes.")
         except ValueError as e:
@@ -290,7 +291,7 @@ class GameLogic:
             if count == 5:
                 self.winner = self.board[row][0]
                 self.game_over = True
-                return True  # NYTHING ELSE TO DO IF TEHRE IS A WINNER???
+                return True  
         for col in range(6):
             count = 0
             for row in range(5):
@@ -303,7 +304,7 @@ class GameLogic:
                 self.winner = self.board[0][col]
                 self.game_over = True
                 return True
-        # DIIAG CHECKS
+        # DIAGONAL CHECKS
         count_diag1 = 0
         count_diag2 = 0
         for i in range(5):
@@ -325,8 +326,9 @@ class GameLogic:
             return True
         return False
     
+    # Send messages to other players to let them know about disconnect
     def inform_disconnect(self,disconnected_player, other_players):
-        message = "An error occurred. Game will quit" 
+        message = "An error occurred. Game will quit"
         if  disconnected_player:
             message = f"Player {disconnected_player} has disconnected. Game will quit"
     
