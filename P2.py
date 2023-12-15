@@ -13,15 +13,20 @@ class GameLogic:
         self.QUIT_TEXT = "Quitting the game."
         self.grid_size = 6
         self.board = [[" "] * self.grid_size for _ in range(self.grid_size)]
+        # Current turn
         self.turn = "X"
+        # Symbol for player. player2 and player3 are symbols for next players in order
         self.you = "Y"
         self.player2 = "O"
         self.player3 = "X"
         self.winner = None
         self.game_over = False
+        # Sockets list for connections to other players 
         self.other_players = []
+        # Sockets list for heartbeat connection to other players
         self.hb_players = {}
-        self.counter = 0  # to determine a tie if all fields are full, counter is 36, we have a tie if no winner etc
+        # Counter for turns played
+        self.counter = 0
         self.host = "localhost"
         self.port = 9999
         self.own_port=9998
@@ -87,8 +92,8 @@ class GameLogic:
             self.main_logger.info(f"Invalid configuration for node {self.you}.")
             exit()
 
-
-    def connect_to_game(self):  # 1 player hosst game teh otehr run connect to game
+    # Connect to socket of P1, Open a socket for P3
+    def connect_to_game(self):
             try:
                 
                 self.main_logger.info(f'{self.you} started the game')
@@ -111,7 +116,7 @@ class GameLogic:
                 consensus_manager = ConsensusManager()
                 consensus_manager.start_consensus()
                 
-                #send a msg to the host that the player 3 is connected
+                
                 threading.Thread(target=self.handle_connection, args=(p_socket,"P3",[p_socket,host_socket])).start()
                 threading.Thread(target=self.handle_connection, args=(host_socket,"P1",[host_socket,p_socket])).start()
                 
@@ -231,11 +236,11 @@ class GameLogic:
         else:
             return self.you
         
-    # WHAT TO DO IF UR THRONW OUT OF THE LOOP CLOSE TEH CLIENTS?
-    def apply_move(self, move, player,other_players):  # idk arguments i guess aybano as we go,
+
+    def apply_move(self, move, player,other_players): 
         try:
-            # i think correct hit player hia bach tayl3bp
-            if self.game_over:  # HIT GAME OVER?? MAKHASSOCH YWSL HNA LA KAN GAME OVER NO?
+            
+            if self.game_over:  
                 return
             self.counter += 1
             self.board[int(move[0])][int(move[1])] = player
@@ -244,7 +249,7 @@ class GameLogic:
             if self.check_for_winner():
                 self.game_over = True
                 if self.winner == self.you:
-                    print("YOU WIN!!")  
+                    print("YOU WIN!!")
                     #broadcast a win, have other players print they lost then quit
                     for other_player in other_players:
                             other_player.send(("WIN" + self.you).encode("utf-8"))
@@ -288,7 +293,7 @@ class GameLogic:
             if count == 5:
                 self.winner = self.board[row][0]
                 self.game_over = True
-                return True  # NYTHING ELSE TO DO IF TEHRE IS A WINNER???
+                return True
         for col in range(6):
             count = 0
             for row in range(5):
@@ -301,7 +306,7 @@ class GameLogic:
                 self.winner = self.board[0][col]
                 self.game_over = True
                 return True
-        # DIIAG CHECKS
+        # DIAGONAL CHECKS
         count_diag1 = 0
         count_diag2 = 0
         for i in range(5):

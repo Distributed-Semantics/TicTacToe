@@ -20,7 +20,7 @@ class GameLogic:
         self.game_over = False
         self.other_players = []
         self.hb_players = {}
-        self.counter = 0  # to dtermien a tie if all field are full, counter is 36, we have a tie if no winner etc
+        self.counter = 0 
         self.host_port = 9999
         self.hb1_port=53224
         self.host = "localhost"
@@ -89,7 +89,8 @@ class GameLogic:
             self.main_logger.info(f"Invalid configuration for node {self.you}.")
             exit()
 
-    def connect_to_game(self):  # 1 player hosst game teh otehr run connect to game
+    # Connect to sockets opened by P1 and P2
+    def connect_to_game(self): 
             try:
                 self.main_logger.info(f'{self.you} started the game')
                 host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -220,11 +221,11 @@ class GameLogic:
             return self.player3
         else:
             return self.you
-    # WHAT TO DO IF UR THRONW OUT OF THE LOOP CLOSE TEH CLIENTS?
-    def apply_move(self, move, player,other_players):  # idk arguments i guess aybano as we go,
+
+    def apply_move(self, move, player,other_players): 
         try:
-            # i think correct hit player hia bach tayl3bp
-            if self.game_over:  # HIT GAME OVER?? MAKHASSOCH YWSL HNA LA KAN GAME OVER NO?
+
+            if self.game_over:
                 return
             self.counter += 1
             self.board[int(move[0])][int(move[1])] = player
@@ -278,7 +279,7 @@ class GameLogic:
             if count == 5:
                 self.winner = self.board[row][0]
                 self.game_over = True
-                return True  # NYTHING ELSE TO DO IF TEHRE IS A WINNER???
+                return True
         for col in range(6):
             count = 0
             for row in range(5):
@@ -291,7 +292,7 @@ class GameLogic:
                 self.winner = self.board[0][col]
                 self.game_over = True
                 return True
-        # DIIAG CHECKS
+        # DIAGONAL CHECKS
         count_diag1 = 0
         count_diag2 = 0
         for i in range(5):
